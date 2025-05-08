@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Absensi Barcode</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    
+    <!-- QR Code Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.2.1/html5-qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+    
+    <style>
+        /* Root Variables - Green and Black Theme */
+        :root {
+            --primary-color: #1b5e20; /* Dark Green */
+            --primary-light: #43a047; /* Medium Green */
+            --secondary-color: #2e7d32; /* Green */
+            --background-color: #f1f8e9; /* Light Green Background */
+            --dark-color: #212121; /* Almost Black */
+            --text-color: #212121; /* Dark Text */
+            --text-light: #ffffff; /* Light Text */
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --firebase-color: #ffca28;
+        }
+        
+        /* Reset and Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+        
+        /* Header and Navigation */
+        header {
+            background-color: var(--primary-color);
+            color: var(--text-light);
+            padding: 1rem 2rem;
+            box-shadow: var(--shadow);
+        }
+        
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        nav ul {
+            display: flex;
+            list-style: none;
+        }
+        
+        nav ul li {
+            margin-left: 1.5rem;
+        }
+        
+        nav ul li a {
+            color: var(--text-light);
+            text-decoration: none;
+            font-weight: 500;
+            transition: opacity 0.3s;
+        }
+        
+        nav ul li a:hover {
+            opacity: 0.8;
+        }
+        
+        /* Container and Layout */
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 2rem;
+        }
+        
+        .tab {
+            padding: 1rem 2rem;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-color);
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            border-bottom-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+        
+        /* Cards */
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .card h2 {
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+        
+        /* Forms */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        /* Buttons */
+        button {
+            background-color: var(--primary-color);
+            color: var(--text-light);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: var(--primary-light);
+        }
+        
+        button.secondary {
+            background-color: var(--dark-color);
+        }
+        
+        button.secondary:hover {
+            background-color: #424242;
+        }
+        
+        button.firebase {
+            background-color: var(--firebase-color);
+            color: #333;
+        }
+        
+        button.firebase:hover {
+            background-color: #ffb300;
+        }
+        
+        /* QR Code Reader */
+        #reader {
+            width: 100%;
+            margin-bottom: 1.5rem;
+        }
+        
+        #barcodeResult {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #e8f5e9;
+            border-radius: 4px;
+            display: none;
+        }
+        
+        #generatedBarcode {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 1.5rem;
+        }
+        
+        #qrcode {
+            margin-bottom: 1rem;
+        }
+        
+        /* Messages */
+        .success-message {
+            background-color: var(--secondary-color);
+            color: var(--text-light);
+            padding: 1rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+            display: none;
+        }
+        
+        .error-message {
+            background-color: #c62828;
+            color: var(--text-light);
+            padding: 1rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+            display: none;
+        }
+        
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1.5rem;
+        }
+        
+        table th, table td {
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        
+        table th {
+            background-color: #e8f5e9;
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+        
+        /* Status Indicators */
+        .firebase-status {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #fff3e0;
+            border-radius: 4px;
+            border-left: 4px solid var(--firebase-color);
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-left: 0.5rem;
+        }
+        
+        .badge-success {
+            background-color: var(--secondary-color);
+            color: var(--text-light);
+        }
+        
+        .badge-error {
+            background-color: #c62828;
+            color: var(--text-light);
+        }
+        
+        /* Footer */
+        footer {
+            background-color: var(--dark-color);
+            color: var(--text-light);
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: 3rem;
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            nav {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            nav ul {
+                margin-top: 1rem;
+            }
+            
+            nav ul li {
+                margin-left: 0;
+                margin-right: 1rem;
+            }
+            
+            .tabs {
+                overflow-x: auto;
+            }
+        }
+        
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 1.5rem;
+        }
+        
+        .pagination button {
+            margin: 0 0.25rem;
+            padding: 0.5rem 1rem;
+        }
+        
+        .pagination button.active {
+            background-color: var(--primary-light);
+        }
+        
+        /* Search */
+        .search-filter {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .search-filter input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <h1>Sistem Absensi Barcode</h1>
+            <ul>
+                <li><a href="#" class="tab-link" data-tab="scan">Scan Barcode</a></li>
+                <li><a href="#" class="tab-link" data-tab="register">Registrasi</a></li>
+                <li><a href="#" class="tab-link" data-tab="database">Database</a></li>
+                <li><a href="admin.html" class="tab-link" data-tab="scan">Admin Page</a></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <div class="container">
+        <div id="firebaseStatus" class="firebase-status">
+            <span class="loading"></span> Menghubungkan ke Firebase Realtime Database...
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" data-tab="scan">Scan Barcode</button>
+            <button class="tab" data-tab="register">Registrasi</button>
+            <button class="tab" data-tab="database">Database</button>
+        </div>
+        
+        <!-- Scan Tab -->
+        <div id="scan" class="tab-content active">
+            <div class="card">
+                <h2>Scan Barcode untuk Absensi</h2>
+                <p>Arahkan kamera ke barcode untuk melakukan absensi.</p>
+                
+                <div id="reader"></div>
+                
+                <div id="barcodeResult">
+                    <h3>Hasil Scan:</h3>
+                    <p id="scannedData"></p>
+                    <p id="userData"></p>
+                    <button id="confirmAttendance">Konfirmasi Kehadiran</button>
+                </div>
+                
+                <div id="attendanceSuccess" class="success-message">
+                    Absensi berhasil dicatat!
+                </div>
+                
+                <div id="attendanceError" class="error-message">
+                    Terjadi kesalahan saat mencatat absensi.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Register Tab -->
+        <div id="register" class="tab-content">
+            <div class="card">
+                <h2>Registrasi Pengguna Baru</h2>
+                <form id="registrationForm">
+                    <div class="form-group">
+                        <label for="nama">Nama Lengkap</label>
+                        <input type="text" id="nama" name="nama" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="jurusan">Jurusan</label>
+                        <input type="text" id="jurusan" name="jurusan" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="kampus">Asal Kampus</label>
+                        <input type="text" id="kampus" name="kampus" required>
+                    </div>
+                    
+                    <button type="submit">Daftar & Buat Barcode</button>
+                </form>
+                
+                <div id="registrationSuccess" class="success-message">
+                    Pendaftaran berhasil! Barcode telah dibuat.
+                </div>
+                
+                <div id="registrationError" class="error-message">
+                    Terjadi kesalahan saat melakukan pendaftaran.
+                </div>
+                
+                <div id="generatedBarcode">
+                    <div id="qrcode"></div>
+                    <button id="downloadBarcode" style="display: none;">Download Barcode</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Database Tab -->
+        <div id="database" class="tab-content">
+            <div class="card">
+                <h2>Database Kehadiran</h2>
+                <p>Data absensi terbaru dari Firebase Realtime Database.</p>
+                
+                <div class="search-filter">
+                    <input type="text" id="searchAttendance" placeholder="Cari nama, jurusan, atau kampus...">
+                    <button id="clearSearch">Clear</button>
+                </div>
+                
+                <div class="tabs">
+                    <button class="tab active" data-subtab="attendance">Absensi</button>
+                    <button class="tab" data-subtab="users">Pengguna</button>
+                </div>
+                
+                <div id="attendance-data" class="subtab-content active">
+                    <table id="attendanceTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nama</th>
+                                <th>Jurusan</th>
+                                <th>Kampus</th>
+                                <th>Waktu Absensi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="5">Memuat data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div class="pagination" id="attendancePagination"></div>
+                </div>
+                
+                <div id="users-data" class="subtab-content">
+                    <table id="usersTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nama</th>
+                                <th>Jurusan</th>
+                                <th>Kampus</th>
+                                <th>Tanggal Registrasi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="5">Memuat data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div class="pagination" id="usersPagination"></div>
+                </div>
+                
+                <button id="refreshData" style="margin-top: 1rem;">Refresh Data</button>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <p>Portofolio - by Eka Yahya &copy; 2025</p>
+    </footer>
+    
+    <script>
+        // ==========================================
+        // Firebase Configuration
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyAfazLVw4dXG1RcJlPlBbI8lKGw3GEndG8",
+            authDomain: "absensi-apk.firebaseapp.com",
+            databaseURL: "https://absensi-apk-default-rtdb.firebaseio.com",
+            projectId: "absensi-apk",
+            storageBucket: "absensi-apk.firebaseestorage.app",
+            messagingSenderId: "869097014745",
+            appId: "1:869097014745:web:b14d4302fae7f29e5885c8",
+            measurementId: "G-91PKC52TMJ"
+        };
+        
+        // ==========================================
+        // Global Variables
+        // ==========================================
+        let currentUser = null;
+        let firebaseApp = null;
+        let database = null;
+        let qrScanner = null;
+        
+        // ==========================================
+        // Initialize App
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Firebase
+            initializeFirebase(firebaseConfig);
+            
+            // Initialize tabs
+            initializeTabs();
+            
+            // Initialize subtabs
+            initializeSubtabs();
+        });
+        
+        // ==========================================
+        // Firebase Initialization
+        // ==========================================
+        function initializeFirebase(config) {
+            try {
+                // Initialize Firebase
+                firebaseApp = firebase.initializeApp(config);
+                database = firebase.database();
+                
+                // Update status
+                document.getElementById('firebaseStatus').innerHTML = `
+                    <span class="badge badge-success">Connected</span> 
+                    Firebase Realtime Database terhubung!
+                `;
+                
+                // Load data
+                fetchAttendanceData();
+                fetchUsersData();
+                
+                // Setup event listeners
+                setupEventListeners();
+                
+                // If we're on the scan tab, initialize scanner
+                if (document.getElementById('scan').classList.contains('active')) {
+                    initScanner();
+                }
+            } catch (error) {
+                console.error('Error initializing Firebase:', error);
+                
+                document.getElementById('firebaseStatus').innerHTML = `
+                    <span class="badge badge-error">Error</span> 
+                    Terjadi kesalahan saat menghubungkan ke Firebase: ${error.message}
+                `;
+            }
+        }
+        
+        // ==========================================
+        // UI Initialization & Navigation
+        // ==========================================
+        function initializeTabs() {
+            document.querySelectorAll('.tab[data-tab], .tab-link[data-tab]').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    
+                    // Update active tab
+                    document.querySelectorAll('.tab[data-tab]').forEach(t => {
+                        t.classList.remove('active');
+                    });
+                    document.querySelectorAll('.tab[data-tab="' + tabId + '"]').forEach(t => {
+                        t.classList.add('active');
+                    });
+                    
+                    // Update active content
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.getElementById(tabId).classList.add('active');
+                    
+                    // Initialize scanner if scan tab is active
+                    if (tabId === 'scan' && database) {
+                        initScanner();
+                    }
+                });
+            });
+        }
+        
+        function initializeSubtabs() {
+            document.querySelectorAll('.tab[data-subtab]').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const subtabId = this.getAttribute('data-subtab');
+                    
+                    // Update active subtab
+                    document.querySelectorAll('.tab[data-subtab]').forEach(t => {
+                        t.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    
+                    // Update active content
+                    document.querySelectorAll('.subtab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.getElementById(subtabId + '-data').classList.add('active');
+                });
+            });
+        }
+        
+        // ==========================================
+        // Event Listeners Setup
+        // ==========================================
+        function setupEventListeners() {
+            // Register new user
+            document.getElementById('registrationForm').addEventListener('submit', handleRegistration);
+            
+            // Confirm attendance
+            document.getElementById('confirmAttendance').addEventListener('click', handleAttendanceConfirmation);
+            
+            // Download barcode
+            document.getElementById('downloadBarcode').addEventListener('click', handleBarcodeDownload);
+            
+            // Refresh database
+            document.getElementById('refreshData').addEventListener('click', handleDataRefresh);
+            
+            // Search and filter
+            document.getElementById('searchAttendance').addEventListener('input', handleSearch);
+            
+            // Clear search
+            document.getElementById('clearSearch').addEventListener('click', clearSearch);
+        }
+        
+        // ==========================================
+        // Scanner Functions
+        // ==========================================
+        function initScanner() {
+            if (document.getElementById('reader').innerHTML !== '') {
+                return;
+            }
+            
+            const html5QrCode = new Html5Qrcode("reader");
+            qrScanner = html5QrCode;
+            
+            const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+                // Handle on success
+                html5QrCode.stop();
+                
+                try {
+                    const userData = JSON.parse(decodedText);
+                    currentUser = userData;
+                    
+                    document.getElementById('scannedData').textContent = `ID: ${userData.id}`;
+                    document.getElementById('userData').textContent = `${userData.nama} - ${userData.jurusan} - ${userData.kampus}`;
+                    document.getElementById('barcodeResult').style.display = 'block';
+                } catch (e) {
+                    alert('Barcode tidak valid! Pastikan menggunakan barcode yang benar.');
+                    initScanner();
+                }
+            };
+            
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                config, 
+                qrCodeSuccessCallback
+            ).catch(err => {
+                console.error('Error starting scanner:', err);
+                alert('Terjadi kesalahan saat mengakses kamera. Pastikan Anda mengizinkan akses kamera.');
+            });
+        }
+        
+        // ==========================================
+        // QR Code Functions
+        // ==========================================
+        function generateQRCode(data) {
+            document.getElementById('qrcode').innerHTML = '';
+            
+            const qr = qrcode(0, 'L');
+            qr.addData(JSON.stringify(data));
+            qr.make();
+            
+            const qrImage = qr.createImgTag(5);
+            document.getElementById('qrcode').innerHTML = qrImage;
+            document.getElementById('downloadBarcode').style.display = 'block';
+        }
+        
+        // ==========================================
+        // Data Fetching Functions
+        // ==========================================
+        function fetchAttendanceData() {
+            if (!database) return;
+            
+            database.ref('attendance').once('value')
+                .then(snapshot => {
+                    const data = snapshot.val() || {};
+                    
+                    // Convert to array and sort by timestamp (newest first)
+                    const attendanceArray = Object.values(data).sort((a, b) => {
+                        return new Date(b.timestamp) - new Date(a.timestamp);
+                    });
+                    
+                    updateAttendanceTable(attendanceArray);
+                })
+                .catch(error => {
+                    console.error('Error fetching attendance data:', error);
+                    document.querySelector('#attendanceTable tbody').innerHTML = 
+                        `<tr><td colspan="5">Error: ${error.message}</td></tr>`;
+                });
+            
+            // Set up real-time listener
+            database.ref('attendance').on('child_added', () => {
+                fetchAttendanceData();
+            });
+        }
+        
+        function fetchUsersData() {
+            if (!database) return;
+            
+            database.ref('users').once('value')
+                .then(snapshot => {
+                    const data = snapshot.val() || {};
+                    
+                    // Convert to array and sort by createdAt (newest first)
+                    const usersArray = Object.values(data).sort((a, b) => {
+                        return new Date(b.createdAt) - new Date(a.createdAt);
+                    });
+                    
+                    updateUsersTable(usersArray);
+                })
+                .catch(error => {
+                    console.error('Error fetching users data:', error);
+                    document.querySelector('#usersTable tbody').innerHTML = 
+                        `<tr><td colspan="5">Error: ${error.message}</td></tr>`;
+                });
+            
+            // Set up real-time listener
+            database.ref('users').on('child_added', () => {
+                fetchUsersData();
+            });
+        }
+        
+        // ==========================================
+        // Event Handlers
+        // ==========================================
+        function handleRegistration(e) {
+            e.preventDefault();
+            
+            if (!database) {
+                alert('Firebase belum terhubung! Silakan setup Firebase terlebih dahulu.');
+                return;
+            }
+            
+            const newUser = {
+                id: generateUniqueId(),
+                nama: document.getElementById('nama').value,
+                jurusan: document.getElementById('jurusan').value,
+                kampus: document.getElementById('kampus').value,
+                createdAt: new Date().toISOString()
+            };
+            
+            // Save to Firebase
+            database.ref('users/' + newUser.id).set(newUser)
+                .then(() => {
+                    // Generate QR code
+                    generateQRCode(newUser);
+                    
+                    // Show success message
+                    document.getElementById('registrationSuccess').style.display = 'block';
+                    setTimeout(() => {
+                        document.getElementById('registrationSuccess').style.display = 'none';
+                    }, 3000);
+                    
+                    // Reset form
+                    this.reset();
+                    
+                    // Refresh user data
+                    fetchUsersData();
+                })
+                .catch(error => {
+                    console.error('Error registering user:', error);
+                    document.getElementById('registrationError').textContent = `Terjadi kesalahan: ${error.message}`;
+                    document.getElementById('registrationError').style.display = 'block';
+                    setTimeout(() => {
+                        document.getElementById('registrationError').style.display = 'none';
+                    }, 3000);
+                });
+        }
+        
+        function handleAttendanceConfirmation() {
+            if (!currentUser) {
+                alert('Tidak ada data pengguna! Silakan scan barcode terlebih dahulu.');
+                return;
+            }
+            
+            if (!database) {
+                alert('Firebase belum terhubung! Silakan setup Firebase terlebih dahulu.');
+                return;
+            }
+            
+            const attendanceId = 'attendance_' + Date.now();
+            const attendanceRecord = {
+                id: attendanceId,
+                userId: currentUser.id,
+                nama: currentUser.nama,
+                jurusan: currentUser.jurusan,
+                kampus: currentUser.kampus,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Save to Firebase
+            database.ref('attendance/' + attendanceId).set(attendanceRecord)
+                .then(() => {
+                    // Show success message
+                    document.getElementById('attendanceSuccess').style.display = 'block';
+                    setTimeout(() => {
+                        document.getElementById('attendanceSuccess').style.display = 'none';
+                        document.getElementById('barcodeResult').style.display = 'none';
+                        initScanner();
+                    }, 3000);
+                    
+                    // Refresh attendance data
+                    fetchAttendanceData();
+                })
+                .catch(error => {
+                    console.error('Error recording attendance:', error);
+                    document.getElementById('attendanceError').textContent = `Terjadi kesalahan: ${error.message}`;
+                    document.getElementById('attendanceError').style.display = 'block';
+                    setTimeout(() => {
+                        document.getElementById('attendanceError').style.display = 'none';
+                    }, 3000);
+                });
+        }
+        
+        function handleBarcodeDownload() {
+            const qrImage = document.querySelector('#qrcode img');
+            if (!qrImage) return;
+            
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            
+            canvas.width = qrImage.width;
+            canvas.height = qrImage.height;
+            
+            const image = new Image();
+            image.onload = function() {
+                context.drawImage(image, 0, 0);
+                
+                const link = document.createElement('a');
+                link.download = 'barcode.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            };
+            image.src = qrImage.src;
+        }
+        
+        function handleDataRefresh() {
+            if (!database) {
+                alert('Firebase belum terhubung! Silakan setup Firebase terlebih dahulu.');
+                return;
+            }
+            
+            fetchAttendanceData();
+            fetchUsersData();
+        }
+        
+        function handleSearch() {
+            const searchTerm = this.value.toLowerCase();
+            filterTableData(searchTerm);
+        }
+        
+        function clearSearch() {
+            document.getElementById('searchAttendance').value = '';
+            filterTableData('');
+        }
+        
+        // ==========================================
+        // Utility Functions
+        // ==========================================
+        function generateUniqueId() {
+            return 'user_' + Date.now() + Math.floor(Math.random() * 1000);
+        }
+        
+        function formatDate(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleString('id-ID', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+        
+        // ==========================================
+        // Table Update Functions
+        // ==========================================
+        function updateAttendanceTable(data, page = 1) {
+            const tableBody = document.querySelector('#attendanceTable tbody');
+            tableBody.innerHTML = '';
+            
+            if (!data || data.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5">Tidak ada data absensi.</td></tr>';
+                document.getElementById('attendancePagination').innerHTML = '';
+                return;
+            }
+            
+            // Pagination
+            const itemsPerPage = 10;
+            const totalPages = Math.ceil(data.length / itemsPerPage);
+            const startIndex = (page - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, data.length);
+            const currentPageData = data.slice(startIndex, endIndex);
+            
+            // Populate table
+            currentPageData.forEach(record => {
+                const row = document.createElement('tr');
+                
+                const idCell = document.createElement('td');
+                idCell.textContent = record.userId;
+                row.appendChild(idCell);
+                
+                const nameCell = document.createElement('td');
+                nameCell.textContent = record.nama;
+                row.appendChild(nameCell);
+                
+                const majorCell = document.createElement('td');
+                majorCell.textContent = record.jurusan;
+                row.appendChild(majorCell);
+                
+                const campusCell = document.createElement('td');
+                campusCell.textContent = record.kampus;
+                row.appendChild(campusCell);
+                
+                const timeCell = document.createElement('td');
+                timeCell.textContent = formatDate(record.timestamp);
+                row.appendChild(timeCell);
+                
+                tableBody.appendChild(row);
+            });
+            
+            // Update pagination
+            updatePagination('attendancePagination', page, totalPages, (newPage) => {
+                updateAttendanceTable(data, newPage);
+            });
+        }
+        
+        function updateUsersTable(data, page = 1) {
+            const tableBody = document.querySelector('#usersTable tbody');
+            tableBody.innerHTML = '';
+            
+            if (!data || data.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5">Tidak ada data pengguna.</td></tr>';
+                document.getElementById('usersPagination').innerHTML = '';
+                return;
+            }
+            
+            // Pagination
+            const itemsPerPage = 10;
+            const totalPages = Math.ceil(data.length / itemsPerPage);
+            const startIndex = (page - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, data.length);
+            const currentPageData = data.slice(startIndex, endIndex);
+            
+            // Populate table
+            currentPageData.forEach(user => {
+                const row = document.createElement('tr');
+                
+                const idCell = document.createElement('td');
+                idCell.textContent = user.id;
+                row.appendChild(idCell);
+                
+                const nameCell = document.createElement('td');
+                nameCell.textContent = user.nama;
+                row.appendChild(nameCell);
+                
+                const majorCell = document.createElement('td');
+                majorCell.textContent = user.jurusan;
+                row.appendChild(majorCell);
+                
+                const campusCell = document.createElement('td');
+                campusCell.textContent = user.kampus;
+                row.appendChild(campusCell);
+                
+                const timeCell = document.createElement('td');
+                timeCell.textContent = formatDate(user.createdAt);
+                row.appendChild(timeCell);
+                
+                tableBody.appendChild(row);
+            });
+            
+            // Update pagination
+            updatePagination('usersPagination', page, totalPages, (newPage) => {
+                updateUsersTable(data, newPage);
+            });
+        }
+        
+        function updatePagination(elementId, currentPage, totalPages, callback) {
+            const paginationElement = document.getElementById(elementId);
+            paginationElement.innerHTML = '';
+            
+            if (totalPages <= 1) return;
+            
+            // Previous button
+            const prevButton = document.createElement('button');
+            prevButton.innerHTML = '&laquo;';
+            prevButton.disabled = currentPage === 1;
+            prevButton.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    callback(currentPage - 1);
+                }
+            });
+            paginationElement.appendChild(prevButton);
+            
+            // Page buttons
+            const maxButtons = 5;
+            const startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+            const endPage = Math.min(totalPages, startPage + maxButtons - 1);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageButton = document.createElement('button');
+                pageButton.textContent = i;
+                pageButton.classList.toggle('active', i === currentPage);
+                pageButton.addEventListener('click', () => {
+                    callback(i);
+                });
+                paginationElement.appendChild(pageButton);
+            }
+            
+            // Next button
+            const nextButton = document.createElement('button');
+            nextButton.innerHTML = '&raquo;';
+            nextButton.disabled = currentPage === totalPages;
+            nextButton.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    callback(currentPage + 1);
+                }
+            });
+            paginationElement.appendChild(nextButton);
+        }
+        
+        // ==========================================
+        // Search and Filter Functions
+        // ==========================================
+        function filterTableData(searchTerm) {
+            const activeSubtab = document.querySelector('.tab[data-subtab].active').getAttribute('data-subtab');
+            
+            if (activeSubtab === 'attendance') {
+                database.ref('attendance').once('value')
+                    .then(snapshot => {
+                        const data = snapshot.val() || {};
+                        
+                        // Convert to array
+                        let attendanceArray = Object.values(data);
+                        
+                        // Filter by search term
+                        if (searchTerm) {
+                            attendanceArray = attendanceArray.filter(record => {
+                                return (
+                                    record.nama.toLowerCase().includes(searchTerm) ||
+                                    record.jurusan.toLowerCase().includes(searchTerm) ||
+                                    record.kampus.toLowerCase().includes(searchTerm)
+                                );
+                            });
+                        }
+                        
+                        // Sort by timestamp (newest first)
+                        attendanceArray.sort((a, b) => {
+                            return new Date(b.timestamp) - new Date(a.timestamp);
+                        });
+                        
+                        updateAttendanceTable(attendanceArray);
+                    });
+            } else if (activeSubtab === 'users') {
+                database.ref('users').once('value')
+                    .then(snapshot => {
+                        const data = snapshot.val() || {};
+                        
+                        // Convert to array
+                        let usersArray = Object.values(data);
+                        
+                        // Filter by search term
+                        if (searchTerm) {
+                            usersArray = usersArray.filter(user => {
+                                return (
+                                    user.nama.toLowerCase().includes(searchTerm) ||
+                                    user.jurusan.toLowerCase().includes(searchTerm) ||
+                                    user.kampus.toLowerCase().includes(searchTerm)
+                                );
+                            });
+                        }
+                        
+                        // Sort by createdAt (newest first)
+                        usersArray.sort((a, b) => {
+                            return new Date(b.createdAt) - new Date(a.createdAt);
+                        });
+                        
+                        updateUsersTable(usersArray);
+                    });
+            }
+        }
+    </script>
+</body>
+</html>

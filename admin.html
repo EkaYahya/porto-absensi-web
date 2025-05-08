@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Sistem Absensi Barcode</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    
+    <!-- QR Code Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+    <!-- Login Section -->
+    <div id="login-section">
+        <div class="login-container">
+            <div class="login-header">
+                <h1>Admin Login</h1>
+                <p>Silakan login untuk mengakses panel admin</p>
+            </div>
+            
+            <div id="login-error" class="error-message"></div>
+            
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required>
+                </div>
+                
+                <button type="submit">Login</button>
+            </form>
+            
+            <div class="back-to-app">
+                <a href="index.html">Kembali ke Aplikasi</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Panel Section (Hidden by default) -->
+    <div id="admin-panel" style="display: none;">
+        <header>
+            <nav>
+                <div class="logo">
+                    <h1>Admin Panel - Sistem Absensi Barcode</h1>
+                </div>
+                <ul>
+                    <li><a href="index.html">Kembali ke Aplikasi</a></li>
+                    <li><a href="#" id="logout-button">Logout</a></li>
+                </ul>
+            </nav>
+        </header>
+        
+        <div class="container">
+            <aside class="sidebar">
+                <ul class="sidebar-menu">
+                    <li><a href="#" class="active" data-section="dashboard">Dashboard</a></li>
+                    <li><a href="#" data-section="users">Data Pengguna</a></li>
+                    <li><a href="#" data-section="attendance">Data Absensi</a></li>
+                    <li><a href="#" data-section="reports">Laporan</a></li>
+                    <li><a href="#" data-section="settings">Pengaturan</a></li>
+                </ul>
+            </aside>
+            
+            <main class="main-content">
+                <!-- Dashboard Section -->
+                <section id="dashboard" class="content-section active">
+                    <h2>Dashboard</h2>
+                    <div class="dashboard-cards">
+                        <div class="card stat-card">
+                            <div class="stat-number" id="total-users">0</div>
+                            <div class="stat-label">Total Pengguna</div>
+                        </div>
+                        <div class="card stat-card">
+                            <div class="stat-number" id="total-attendance">0</div>
+                            <div class="stat-label">Total Absensi</div>
+                        </div>
+                        <div class="card stat-card">
+                            <div class="stat-number" id="today-attendance">0</div>
+                            <div class="stat-label">Absensi Hari Ini</div>
+                        </div>
+                        <div class="card stat-card">
+                            <div class="stat-number" id="active-users">0</div>
+                            <div class="stat-label">Pengguna Aktif</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>Grafik Absensi (7 Hari Terakhir)</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="attendance-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>Aktivitas Terbaru</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table id="recent-activities">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Nama</th>
+                                            <th>Jurusan</th>
+                                            <th>Kampus</th>
+                                            <th>Waktu</th>
+                                            <th>Jenis</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="6">Memuat data...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Users Section -->
+                <section id="users" class="content-section">
+                    <h2>Data Pengguna</h2>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>Daftar Pengguna</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="search-box">
+                                <input type="text" id="user-search" placeholder="Cari pengguna...">
+                                <button id="user-search-btn">Cari</button>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table id="users-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Nama</th>
+                                            <th>Jurusan</th>
+                                            <th>Kampus</th>
+                                            <th>Tanggal Registrasi</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="6">Memuat data...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="pagination" id="users-pagination"></div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Attendance Section -->
+                <section id="attendance" class="content-section">
+                    <h2>Data Absensi</h2>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>Daftar Absensi</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="search-box">
+                                <input type="text" id="attendance-search" placeholder="Cari absensi...">
+                                <button id="attendance-search-btn">Cari</button>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table id="attendance-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Nama</th>
+                                            <th>Jurusan</th>
+                                            <th>Kampus</th>
+                                            <th>Waktu Absensi</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="6">Memuat data...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="pagination" id="attendance-pagination"></div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Reports Section -->
+                <section id="reports" class="content-section">
+                    <h2>Laporan</h2>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>Generate Laporan</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="tab-container">
+                                <div class="tabs">
+                                    <button class="tab active" data-tab="daily-report">Laporan Harian</button>
+                                    <button class="tab" data-tab="weekly-report">Laporan Mingguan</button>
+                                    <button class="tab" data-tab="monthly-report">Laporan Bulanan</button>
+                                    <button class="tab" data-tab="custom-report">Laporan Kustom</button>
+                                </div>
+                                
+                                <div id="daily-report" class="tab-content active">
+                                    <h3>Laporan Harian</h3>
+                                    <p>Generate laporan absensi harian.</p>
+                                    
+                                    <form id="daily-report-form">
+                                        <div style="margin-bottom: 1rem;">
+                                            <label for="daily-date">Pilih Tanggal:</label>
+                                            <input type="date" id="daily-date" required>
+                                        </div>
+                                        
+                                        <button type="submit" class="btn">Generate Laporan</button>
+                                    </form>
+                                </div>
+                                
+                                <div id="weekly-report" class="tab-content">
+                                    <h3>Laporan Mingguan</h3>
+                                    <p>Generate laporan absensi mingguan.</p>
+                                    
+                                    <form id="weekly-report-form">
+                                        <div style="margin-bottom: 1rem;">
+                                            <label for="weekly-start-date">Tanggal Mulai:</label>
+                                            <input type="date" id="weekly-start-date" required>
+                                        </div>
+                                        
+                                        <div style="margin-bottom: 1rem;">
+                                            <label for="weekly-end-date">Tanggal Akhir:</label>
+                                            <input type="date" id="weekly-end-date" required>
+                                        </div>
+                                        
+                                        <button type="submit" class="btn">Generate Laporan</button>
+                                    </form>
+                                </div>
+                                
+                                <div id="monthly-report" class="tab-content">
+                                    <h3>Laporan Bulanan</h3>
+                                    <p>Generate laporan absensi bulanan.</p>
+                                    
+                                    <form id="monthly-report-form">
+                                        <div style="margin-bottom: 1rem;">
+                                            <label for="monthly-month">Pilih Bulan:</label>
+                                            <input type="month" id="monthly-month" required>
+                                        </div>
+                                        
+                                        <button type="submit" class="btn">Generate Laporan</button>
+                                    </form>
+                                </div>
+                                
+                                <div id="custom-report" class="tab-content">
+                                    <h3>Laporan Kustom</h3>
+                                    <p>Generate laporan absensi dengan filter kustom.</p>
+                                    
+                                    <form id="custom-report-form">
+                                        <div style="margin-bottom: 1rem;">
+                                            <label for="custom-start-date">Tanggal Mulai:</label>
+                                            <input type="date" id="custom-start-date" required>
+                                        </div>
+                                        
+                                        <div style="margin-bottom: 1rem;">
+                                            <label for="custom-end-date">Tanggal Akhir:</label>
+                                            <input type="date" id="custom-end-date" required>
+                                        </div>
+                                        
+                                        <div style="margin-bottom: 1rem;">
+                                            <label for="custom-jurusan">Jurusan (opsional):</label>
+                                            <input type="text" id="custom-jurusan">
+                                        </div>
+                                        
+                                        <div style="margin-bottom: 1rem;">
+                                            <label for="custom-kampus">Kampus (opsional):</label>
+                                            <input type="text" id="custom-kampus">
+                                        </div>
+                                        
+                                        <button type="submit" class="btn">Generate Laporan</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>Hasil Laporan</h2>
+                        </div>
+                        <div class="card-body">
+                            <div id="report-result">
+                                <p>Belum ada laporan yang digenerate.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Settings Section -->
+                <section id="settings" class="content-section">
+                    <h2>Pengaturan</h2>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>Pengaturan Aplikasi</h2>
+                        </div>
+                        <div class="card-body">
+                            <form id="settings-form">
+                                <div style="margin-bottom: 1rem;">
+                                    <label for="app-name">Nama Aplikasi:</label>
+                                    <input type="text" id="app-name" value="Sistem Absensi Barcode">
+                                </div>
+                                
+                                <div style="margin-bottom: 1rem;">
+                                    <label for="admin-email">Email Admin:</label>
+                                    <input type="email" id="admin-email" value="admin@example.com">
+                                </div>
+                                
+                                <div style="margin-bottom: 1rem;">
+                                    <label for="theme-color">Warna Tema:</label>
+                                    <select id="theme-color">
+                                        <option value="green" selected>Hijau-Hitam</option>
+                                        <option value="blue">Biru-Putih</option>
+                                        <option value="red">Merah-Putih</option>
+                                        <option value="purple">Ungu-Putih</option>
+                                    </select>
+                                </div>
+                                
+                                <button type="submit" class="btn">Simpan Pengaturan</button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>Pengaturan Admin</h2>
+                        </div>
+                        <div class="card-body">
+                            <form id="admin-settings-form">
+                                <div style="margin-bottom: 1rem;">
+                                    <label for="new-username">Username Baru:</label>
+                                    <input type="text" id="new-username">
+                                </div>
+                                
+                                <div style="margin-bottom: 1rem;">
+                                    <label for="new-password">Password Baru:</label>
+                                    <input type="password" id="new-password">
+                                </div>
+                                
+                                <div style="margin-bottom: 1rem;">
+                                    <label for="confirm-password">Konfirmasi Password:</label>
+                                    <input type="password" id="confirm-password">
+                                </div>
+                                
+                                <button type="submit" class="btn">Ubah Credentials</button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>Firebase Configuration</h2>
+                        </div>
+                        <div class="card-body">
+                            <p>Konfigurasi Firebase saat ini:</p>
+                            <pre id="firebase-config" style="background-color: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto;"></pre>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+        
+        <!-- Modal untuk menampilkan barcode -->
+        <div class="modal" id="barcode-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Barcode Pengguna</h3>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="user-details">
+                        <p><span class="user-detail-label">ID:</span> <span id="user-id"></span></p>
+                        <p><span class="user-detail-label">Nama:</span> <span id="user-name"></span></p>
+                        <p><span class="user-detail-label">Jurusan:</span> <span id="user-jurusan"></span></p>
+                        <p><span class="user-detail-label">Kampus:</span> <span id="user-kampus"></span></p>
+                        <p><span class="user-detail-label">Tanggal Registrasi:</span> <span id="user-created"></span></p>
+                    </div>
+                    
+                    <div class="barcode-container">
+                        <div id="user-barcode"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn" id="download-barcode">Download Barcode</button>
+                    <button class="btn btn-danger" id="close-modal">Tutup</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal untuk detail absensi -->
+        <div class="modal" id="attendance-detail-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Detail Absensi</h3>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="user-details">
+                        <p><span class="user-detail-label">ID Absensi:</span> <span id="attendance-id"></span></p>
+                        <p><span class="user-detail-label">ID Pengguna:</span> <span id="attendance-user-id"></span></p>
+                        <p><span class="user-detail-label">Nama:</span> <span id="attendance-name"></span></p>
+                        <p><span class="user-detail-label">Jurusan:</span> <span id="attendance-jurusan"></span></p>
+                        <p><span class="user-detail-label">Kampus:</span> <span id="attendance-kampus"></span></p>
+                        <p><span class="user-detail-label">Waktu Absensi:</span> <span id="attendance-time"></span></p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn" id="show-user-barcode">Lihat Barcode Pengguna</button>
+                    <button class="btn btn-danger" id="close-attendance-modal">Tutup</button>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Portofolio - by Eka Yahya &copy; 2025</p>
+        </footer>
+    </div>
+    
+    <!-- JavaScript -->
+    <script src="admin-script.js"></script>
+</body>
+</html>

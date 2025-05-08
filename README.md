@@ -57,6 +57,7 @@ admin-script.js - JavaScript untuk panel admin
 
 ## Demo
 Anda bisa mencoba demo aplikasi di sini.
+https://ekayahya.github.io/porto-absensi-web/ 
 
 Proyek ini dilisensikan di bawah MIT License.
 

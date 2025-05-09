@@ -1,3 +1,6 @@
+// Perbaikan: Pastikan nama fungsi konsisten di seluruh kode
+// Fungsi handleDataRefresh sudah digunakan dalam event listener, tetapi nama yang sebenarnya adalah handleDataRefresh
+
 // ==========================================
 // Firebase Configuration
 // ==========================================
@@ -29,31 +32,52 @@ let scannerOptions = {
 // Initialize App
 // ==========================================
 document.addEventListener('DOMContentLoaded', function() {
-    // Mobile menu toggle
-    initializeMobileMenu();
-    
-    // Initialize Firebase
-    initializeFirebase(firebaseConfig);
-    
-    // Initialize tabs
-    initializeTabs();
-    
-    // Initialize subtabs
-    initializeSubtabs();
-    
-    // Set up screen orientation change event
-    window.addEventListener('resize', handleScreenResize);
-    
-    // Handle device orientation change
-    if (window.screen && window.screen.orientation) {
-        window.screen.orientation.addEventListener('change', handleOrientationChange);
-    } else if (window.orientation !== undefined) {
-        window.addEventListener('orientationchange', handleOrientationChange);
+    try {
+        // Mobile menu toggle
+        initializeMobileMenu();
+        
+        // Initialize Firebase
+        initializeFirebase(firebaseConfig);
+        
+        // Initialize tabs
+        initializeTabs();
+        
+        // Initialize subtabs
+        initializeSubtabs();
+        
+        // Set up screen orientation change event
+        window.addEventListener('resize', handleScreenResize);
+        
+        // Handle device orientation change
+        if (window.screen && window.screen.orientation) {
+            window.screen.orientation.addEventListener('change', handleOrientationChange);
+        } else if (window.orientation !== undefined) {
+            window.addEventListener('orientationchange', handleOrientationChange);
+        }
+        
+        // Initial screen size check
+        adjustForScreenSize();
+    } catch (error) {
+        console.error('Error initializing app:', error);
+        showErrorMessage('Terjadi kesalahan saat inisialisasi aplikasi: ' + error.message);
     }
-    
-    // Initial screen size check
-    adjustForScreenSize();
 });
+
+// Fungsi untuk menampilkan error di UI
+function showErrorMessage(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.style.display = 'block';
+    errorDiv.textContent = message;
+    
+    // Cari tempat untuk menampilkan error
+    const container = document.querySelector('.container');
+    if (container) {
+        container.prepend(errorDiv);
+    } else {
+        document.body.prepend(errorDiv);
+    }
+}
 
 // ==========================================
 // Responsive Helpers
@@ -62,30 +86,30 @@ function initializeMobileMenu() {
     const menuToggle = document.getElementById('menuToggle');
     const mainNav = document.getElementById('mainNav');
     
-    if (menuToggle) {
+    if (menuToggle && mainNav) {
         menuToggle.addEventListener('click', function() {
             mainNav.classList.toggle('menu-active');
             this.textContent = mainNav.classList.contains('menu-active') ? '✕' : '☰';
         });
-    }
-    
-    // Close menu when clicking anywhere else
-    document.addEventListener('click', function(event) {
-        if (mainNav.classList.contains('menu-active') && !mainNav.contains(event.target) && event.target !== menuToggle) {
-            mainNav.classList.remove('menu-active');
-            menuToggle.textContent = '☰';
-        }
-    });
-    
-    // Close menu when clicking on a nav link
-    document.querySelectorAll('nav ul li a').forEach(link => {
-        link.addEventListener('click', function() {
-            if (window.innerWidth <= 768) {
+        
+        // Close menu when clicking anywhere else
+        document.addEventListener('click', function(event) {
+            if (mainNav.classList.contains('menu-active') && !mainNav.contains(event.target) && event.target !== menuToggle) {
                 mainNav.classList.remove('menu-active');
                 menuToggle.textContent = '☰';
             }
         });
-    });
+        
+        // Close menu when clicking on a nav link
+        document.querySelectorAll('nav ul li a').forEach(link => {
+            link.addEventListener('click', function() {
+                if (window.innerWidth <= 768) {
+                    mainNav.classList.remove('menu-active');
+                    menuToggle.textContent = '☰';
+                }
+            });
+        });
+    }
 }
 
 function handleScreenResize() {
@@ -93,7 +117,7 @@ function handleScreenResize() {
     const mainNav = document.getElementById('mainNav');
     const menuToggle = document.getElementById('menuToggle');
     
-    if (window.innerWidth > 768 && mainNav.classList.contains('menu-active')) {
+    if (window.innerWidth > 768 && mainNav && mainNav.classList.contains('menu-active')) {
         mainNav.classList.remove('menu-active');
         if (menuToggle) menuToggle.textContent = '☰';
     }
@@ -180,10 +204,13 @@ function initializeFirebase(config) {
         database = firebase.database();
         
         // Update status
-        document.getElementById('firebaseStatus').innerHTML = `
-            <span class="badge badge-success">Connected</span> 
-            Firebase Realtime Database terhubung!
-        `;
+        const firebaseStatus = document.getElementById('firebaseStatus');
+        if (firebaseStatus) {
+            firebaseStatus.innerHTML = `
+                <span class="badge badge-success">Connected</span> 
+                Firebase Realtime Database terhubung!
+            `;
+        }
         
         // Load data
         fetchAttendanceData();
@@ -193,16 +220,19 @@ function initializeFirebase(config) {
         setupEventListeners();
         
         // If we're on the scan tab, initialize scanner
-        if (document.getElementById('scan').classList.contains('active')) {
+        if (document.getElementById('scan') && document.getElementById('scan').classList.contains('active')) {
             initScanner();
         }
     } catch (error) {
         console.error('Error initializing Firebase:', error);
         
-        document.getElementById('firebaseStatus').innerHTML = `
-            <span class="badge badge-error">Error</span> 
-            Terjadi kesalahan saat menghubungkan ke Firebase: ${error.message}
-        `;
+        const firebaseStatus = document.getElementById('firebaseStatus');
+        if (firebaseStatus) {
+            firebaseStatus.innerHTML = `
+                <span class="badge badge-error">Error</span> 
+                Terjadi kesalahan saat menghubungkan ke Firebase: ${error.message}
+            `;
+        }
     }
 }
 
@@ -212,7 +242,7 @@ function initializeFirebase(config) {
 function initializeTabs() {
     document.querySelectorAll('.tab[data-tab], .tab-link[data-tab]').forEach(tab => {
         tab.addEventListener('click', function(e) {
-            e.preventDefault(); // Prevent default action for links
+            if (e.preventDefault) e.preventDefault(); // Prevent default action for links
             const tabId = this.getAttribute('data-tab');
             
             // Update active tab
@@ -235,27 +265,33 @@ function initializeTabs() {
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.remove('active');
             });
-            document.getElementById(tabId).classList.add('active');
             
-            // Initialize scanner if scan tab is active
-            if (tabId === 'scan' && database) {
-                initScanner();
-            }
-            
-            // Stop scanner if moving away from scan tab
-            if (tabId !== 'scan' && qrScanner && qrScanner._isScanning) {
-                qrScanner.stop().catch(err => console.error('Error stopping scanner:', err));
+            const tabContent = document.getElementById(tabId);
+            if (tabContent) {
+                tabContent.classList.add('active');
+                
+                // Initialize scanner if scan tab is active
+                if (tabId === 'scan' && database) {
+                    initScanner();
+                }
+                
+                // Stop scanner if moving away from scan tab
+                if (tabId !== 'scan' && qrScanner && qrScanner._isScanning) {
+                    qrScanner.stop().catch(err => console.error('Error stopping scanner:', err));
+                }
             }
             
             // Scroll tab into view in tab bar
             const tabElement = document.querySelector(`.tabs .tab[data-tab="${tabId}"]`);
             if (tabElement) {
                 const tabsContainer = document.querySelector('.tabs');
-                const tabRect = tabElement.getBoundingClientRect();
-                const containerRect = tabsContainer.getBoundingClientRect();
-                
-                if (tabRect.left < containerRect.left || tabRect.right > containerRect.right) {
-                    tabElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                if (tabsContainer) {
+                    const tabRect = tabElement.getBoundingClientRect();
+                    const containerRect = tabsContainer.getBoundingClientRect();
+                    
+                    if (tabRect.left < containerRect.left || tabRect.right > containerRect.right) {
+                        tabElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    }
                 }
             }
         });
@@ -277,7 +313,11 @@ function initializeSubtabs() {
             document.querySelectorAll('.subtab-content').forEach(content => {
                 content.classList.remove('active');
             });
-            document.getElementById(subtabId + '-data').classList.add('active');
+            
+            const subtabContent = document.getElementById(subtabId + '-data');
+            if (subtabContent) {
+                subtabContent.classList.add('active');
+            }
         });
     });
 }
@@ -286,52 +326,58 @@ function initializeSubtabs() {
 // Event Listeners Setup
 // ==========================================
 function setupEventListeners() {
-    // Register new user
-    const registrationForm = document.getElementById('registrationForm');
-    if (registrationForm) {
-        registrationForm.addEventListener('submit', handleRegistration);
-    }
-    
-    // Confirm attendance
-    const confirmBtn = document.getElementById('confirmAttendance');
-    if (confirmBtn) {
-        confirmBtn.addEventListener('click', handleAttendanceConfirmation);
-    }
-    
-    // Download barcode
-    const downloadBtn = document.getElementById('downloadBarcode');
-    if (downloadBtn) {
-        downloadBtn.addEventListener('click', handleBarcodeDownload);
-    }
-    
-    // Refresh database
-    const refreshBtn = document.getElementById('refreshData');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', handleDataRefresh);
-    }
-    
-    // Search and filter
-    const searchInput = document.getElementById('searchAttendance');
-    if (searchInput) {
-        searchInput.addEventListener('input', handleSearch);
-        
-        // Add clear button functionality
-        const clearBtn = document.getElementById('clearSearch');
-        if (clearBtn) {
-            clearBtn.addEventListener('click', clearSearch);
+    try {
+        // Register new user
+        const registrationForm = document.getElementById('registrationForm');
+        if (registrationForm) {
+            registrationForm.addEventListener('submit', handleRegistration);
         }
-    }
-    
-    // Add touch feedback to all buttons
-    document.querySelectorAll('button').forEach(button => {
-        button.addEventListener('touchstart', function() {
-            this.style.transform = 'scale(0.98)';
-        });
         
-        button.addEventListener('touchend', function() {
-            this.style.transform = 'scale(1)';
+        // Confirm attendance
+        const confirmBtn = document.getElementById('confirmAttendance');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', handleAttendanceConfirmation);
+        }
+        
+        // Download barcode
+        const downloadBtn = document.getElementById('downloadBarcode');
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', handleBarcodeDownload);
+        }
+        
+        // Refresh database
+        const refreshBtn = document.getElementById('refreshData');
+        if (refreshBtn) {
+            // PERBAIKAN: Gunakan fungsi handleDataRefresh yang sudah didefinisikan
+            refreshBtn.addEventListener('click', handleDataRefresh);
+        }
+        
+        // Search and filter
+        const searchInput = document.getElementById('searchAttendance');
+        if (searchInput) {
+            searchInput.addEventListener('input', handleSearch);
+            
+            // Add clear button functionality
+            const clearBtn = document.getElementById('clearSearch');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', clearSearch);
+            }
+        }
+        
+        // Add touch feedback to all buttons
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('touchstart', function() {
+                this.style.transform = 'scale(0.98)';
+            });
+            
+            button.addEventListener('touchend', function() {
+                this.style.transform = 'scale(1)';
+            });
         });
-    });
+    } catch (error) {
+        console.error('Error setting up event listeners:', error);
+        showErrorMessage('Terjadi kesalahan saat setup event listeners: ' + error.message);
+    }
 }
 
 // ==========================================
@@ -344,18 +390,25 @@ function initScanner() {
         return;
     }
     
-    // Clear any previous HTML
-    readerElement.innerHTML = '';
-    
-    // Create new scanner instance
-    const html5QrCode = new Html5Qrcode("reader");
-    qrScanner = html5QrCode;
-    
-    // Set up scanner configuration
-    adjustScannerSize();
-    
-    // Start scanner
-    startScanner();
+    try {
+        // Clear any previous HTML
+        readerElement.innerHTML = '';
+        
+        // Create new scanner instance
+        const html5QrCode = new Html5Qrcode("reader");
+        qrScanner = html5QrCode;
+        
+        // Set up scanner configuration
+        adjustScannerSize();
+        
+        // Start scanner
+        startScanner();
+    } catch (error) {
+        console.error('Error initializing scanner:', error);
+        if (readerElement) {
+            readerElement.innerHTML = `<div class="error-message">Terjadi kesalahan inisialisasi scanner: ${error.message}</div>`;
+        }
+    }
 }
 
 function startScanner() {
@@ -405,25 +458,30 @@ function startScanner() {
 }
 
 function startQRScanner() {
-    const qrCodeSuccessCallback = (decodedText, decodedResult) => {
-        // Handle on success
-        qrScanner.stop().catch(err => console.error('Error stopping scanner after successful scan:', err));
-        handleSuccessfulScan(decodedText);
-    };
-    
-    // Determine facing mode based on device
-    const facingMode = isMobileDevice() ? "environment" : "user";
-    
-    // Start scanner with optimal configuration
-    qrScanner.start(
-        { facingMode: facingMode }, 
-        scannerOptions, 
-        qrCodeSuccessCallback,
-        handleScanError
-    ).catch(err => {
-        console.error('Error starting scanner:', err);
-        displayScannerError(err);
-    });
+    try {
+        const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+            // Handle on success
+            qrScanner.stop().catch(err => console.error('Error stopping scanner after successful scan:', err));
+            handleSuccessfulScan(decodedText);
+        };
+        
+        // Determine facing mode based on device
+        const facingMode = isMobileDevice() ? "environment" : "user";
+        
+        // Start scanner with optimal configuration
+        qrScanner.start(
+            { facingMode: facingMode }, 
+            scannerOptions, 
+            qrCodeSuccessCallback,
+            handleScanError
+        ).catch(err => {
+            console.error('Error starting scanner:', err);
+            displayScannerError(err);
+        });
+    } catch (error) {
+        console.error('Error starting QR scanner:', error);
+        displayScannerError(error);
+    }
 }
 
 function handleSuccessfulScan(decodedText) {
@@ -436,17 +494,28 @@ function handleSuccessfulScan(decodedText) {
         
         // Animate success
         const barcodeResult = document.getElementById('barcodeResult');
-        barcodeResult.style.animation = 'pulse 0.5s';
-        
-        // Display scanned data
-        document.getElementById('scannedData').textContent = `ID: ${userData.id}`;
-        document.getElementById('userData').textContent = `${userData.nama} - ${userData.jurusan} - ${userData.kampus}`;
-        barcodeResult.style.display = 'block';
-        
-        // Scroll to result area
-        setTimeout(() => {
-            barcodeResult.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }, 100);
+        if (barcodeResult) {
+            barcodeResult.style.animation = 'pulse 0.5s';
+            
+            // Display scanned data
+            const scannedDataElement = document.getElementById('scannedData');
+            const userDataElement = document.getElementById('userData');
+            
+            if (scannedDataElement) {
+                scannedDataElement.textContent = `ID: ${userData.id}`;
+            }
+            
+            if (userDataElement) {
+                userDataElement.textContent = `${userData.nama} - ${userData.jurusan} - ${userData.kampus}`;
+            }
+            
+            barcodeResult.style.display = 'block';
+            
+            // Scroll to result area
+            setTimeout(() => {
+                barcodeResult.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 100);
+        }
     } catch (e) {
         // Play error sound
         playSound('error');
@@ -533,7 +602,10 @@ function displayScannerError(error) {
 // QR Code Functions
 // ==========================================
 function generateQRCode(data) {
-    document.getElementById('qrcode').innerHTML = '';
+    const qrcodeElement = document.getElementById('qrcode');
+    if (!qrcodeElement) return;
+    
+    qrcodeElement.innerHTML = '';
     
     try {
         const qr = qrcode(0, 'L');
@@ -563,8 +635,12 @@ function generateQRCode(data) {
         qrContainer.appendChild(userInfoDiv);
         
         // Add to DOM
-        document.getElementById('qrcode').appendChild(qrContainer);
-        document.getElementById('downloadBarcode').style.display = 'block';
+        qrcodeElement.appendChild(qrContainer);
+        
+        const downloadButton = document.getElementById('downloadBarcode');
+        if (downloadButton) {
+            downloadButton.style.display = 'block';
+        }
         
         // Scroll to QR Code
         qrContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -576,7 +652,7 @@ function generateQRCode(data) {
         playSound('success');
     } catch (error) {
         console.error('Error generating QR code:', error);
-        document.getElementById('qrcode').innerHTML = '<div class="error-message">Error generating QR code</div>';
+        qrcodeElement.innerHTML = '<div class="error-message">Error generating QR code</div>';
     }
 }
 
@@ -588,29 +664,36 @@ function fetchAttendanceData() {
     
     showLoadingState('attendanceTable');
     
-    database.ref('attendance').once('value')
-        .then(snapshot => {
-            const data = snapshot.val() || {};
-            
-            // Convert to array and sort by timestamp (newest first)
-            const attendanceArray = Object.values(data).sort((a, b) => {
-                return new Date(b.timestamp) - new Date(a.timestamp);
+    try {
+        database.ref('attendance').once('value')
+            .then(snapshot => {
+                const data = snapshot.val() || {};
+                
+                // Convert to array and sort by timestamp (newest first)
+                const attendanceArray = Object.values(data).sort((a, b) => {
+                    return new Date(b.timestamp) - new Date(a.timestamp);
+                });
+                
+                updateAttendanceTable(attendanceArray);
+                hideLoadingState('attendanceTable');
+            })
+            .catch(error => {
+                console.error('Error fetching attendance data:', error);
+                const tableBody = document.querySelector('#attendanceTable tbody');
+                if (tableBody) {
+                    tableBody.innerHTML = `<tr><td colspan="5">Error: ${error.message}</td></tr>`;
+                }
+                hideLoadingState('attendanceTable');
             });
-            
-            updateAttendanceTable(attendanceArray);
-            hideLoadingState('attendanceTable');
-        })
-        .catch(error => {
-            console.error('Error fetching attendance data:', error);
-            document.querySelector('#attendanceTable tbody').innerHTML = 
-                `<tr><td colspan="5">Error: ${error.message}</td></tr>`;
-            hideLoadingState('attendanceTable');
+        
+        // Set up real-time listener
+        database.ref('attendance').on('child_added', () => {
+            fetchAttendanceData();
         });
-    
-    // Set up real-time listener
-    database.ref('attendance').on('child_added', () => {
-        fetchAttendanceData();
-    });
+    } catch (error) {
+        console.error('Error in fetchAttendanceData:', error);
+        hideLoadingState('attendanceTable');
+    }
 }
 
 function fetchUsersData() {
@@ -618,29 +701,36 @@ function fetchUsersData() {
     
     showLoadingState('usersTable');
     
-    database.ref('users').once('value')
-        .then(snapshot => {
-            const data = snapshot.val() || {};
-            
-            // Convert to array and sort by createdAt (newest first)
-            const usersArray = Object.values(data).sort((a, b) => {
-                return new Date(b.createdAt) - new Date(a.createdAt);
+    try {
+        database.ref('users').once('value')
+            .then(snapshot => {
+                const data = snapshot.val() || {};
+                
+                // Convert to array and sort by createdAt (newest first)
+                const usersArray = Object.values(data).sort((a, b) => {
+                    return new Date(b.createdAt) - new Date(a.createdAt);
+                });
+                
+                updateUsersTable(usersArray);
+                hideLoadingState('usersTable');
+            })
+            .catch(error => {
+                console.error('Error fetching users data:', error);
+                const tableBody = document.querySelector('#usersTable tbody');
+                if (tableBody) {
+                    tableBody.innerHTML = `<tr><td colspan="5">Error: ${error.message}</td></tr>`;
+                }
+                hideLoadingState('usersTable');
             });
-            
-            updateUsersTable(usersArray);
-            hideLoadingState('usersTable');
-        })
-        .catch(error => {
-            console.error('Error fetching users data:', error);
-            document.querySelector('#usersTable tbody').innerHTML = 
-                `<tr><td colspan="5">Error: ${error.message}</td></tr>`;
-            hideLoadingState('usersTable');
+        
+        // Set up real-time listener
+        database.ref('users').on('child_added', () => {
+            fetchUsersData();
         });
-    
-    // Set up real-time listener
-    database.ref('users').on('child_added', () => {
-        fetchUsersData();
-    });
+    } catch (error) {
+        console.error('Error in fetchUsersData:', error);
+        hideLoadingState('usersTable');
+    }
 }
 
 function showLoadingState(tableId) {
@@ -677,15 +767,28 @@ function handleRegistration(e) {
     
     // Show loading state
     const submitButton = this.querySelector('button[type="submit"]');
+    if (!submitButton) return;
+    
     const originalText = submitButton.textContent;
     submitButton.innerHTML = '<span class="loading" style="width: 16px; height: 16px; margin-right: 8px;"></span> Mendaftar...';
     submitButton.disabled = true;
     
+    const namaElement = document.getElementById('nama');
+    const jurusanElement = document.getElementById('jurusan');
+    const kampusElement = document.getElementById('kampus');
+    
+    if (!namaElement || !jurusanElement || !kampusElement) {
+        showMessage('error', 'Form tidak lengkap!');
+        submitButton.innerHTML = originalText;
+        submitButton.disabled = false;
+        return;
+    }
+    
     const newUser = {
         id: generateUniqueId(),
-        nama: document.getElementById('nama').value,
-        jurusan: document.getElementById('jurusan').value,
-        kampus: document.getElementById('kampus').value,
+        nama: namaElement.value,
+        jurusan: jurusanElement.value,
+        kampus: kampusElement.value,
         createdAt: new Date().toISOString()
     };
     
@@ -739,6 +842,8 @@ function handleAttendanceConfirmation() {
     
     // Show loading state
     const button = document.getElementById('confirmAttendance');
+    if (!button) return;
+    
     const originalText = button.textContent;
     button.innerHTML = '<span class="loading" style="width: 16px; height: 16px; margin-right: 8px;"></span> Menyimpan...';
     button.disabled = true;
@@ -761,7 +866,11 @@ function handleAttendanceConfirmation() {
             
             // Show success message and reset
             showMessage('success', 'Absensi berhasil dicatat!');
-            document.getElementById('barcodeResult').style.display = 'none';
+            
+            const barcodeResult = document.getElementById('barcodeResult');
+            if (barcodeResult) {
+                barcodeResult.style.display = 'none';
+            }
             
             // Reset button
             button.innerHTML = originalText;
@@ -794,6 +903,8 @@ function handleBarcodeDownload() {
     
     // Show loading state
     const button = document.getElementById('downloadBarcode');
+    if (!button) return;
+    
     const originalText = button.textContent;
     button.innerHTML = '<span class="loading" style="width: 16px; height: 16px; margin-right: 8px;"></span> Menyiapkan...';
     button.disabled = true;
@@ -839,12 +950,21 @@ function handleBarcodeDownload() {
                     context.font = 'bold 14px Arial';
                     context.textAlign = 'center';
                     context.fillStyle = '#000';
-                    context.fillText(userInfoDiv.querySelector('strong').textContent, containerWidth / 2, qrImage.height + 30);
+                    
+                    const strongElement = userInfoDiv.querySelector('strong');
+                    if (strongElement) {
+                        context.fillText(strongElement.textContent, containerWidth / 2, qrImage.height + 30);
+                    }
                     
                     context.font = '12px Arial';
                     context.fillStyle = '#666';
-                    const infoText = userInfoDiv.textContent.replace(userInfoDiv.querySelector('strong').textContent, '').trim();
-                    context.fillText(infoText, containerWidth / 2, qrImage.height + 50);
+                    
+                    if (strongElement) {
+                        const infoText = userInfoDiv.textContent.replace(strongElement.textContent, '').trim();
+                        context.fillText(infoText, containerWidth / 2, qrImage.height + 50);
+                    } else {
+                        context.fillText(userInfoDiv.textContent, containerWidth / 2, qrImage.height + 50);
+                    }
                 }
                 
                 // Convert to image and trigger download
@@ -878,5 +998,46 @@ function handleBarcodeDownload() {
         showMessage('error', `Terjadi kesalahan: ${error.message}`);
         button.innerHTML = originalText;
         button.disabled = false;
+    }
+}
+
+// PERBAIKAN: Mendefinisikan fungsi handleDataRefresh yang sebelumnya hilang
+function handleDataRefresh() {
+    if (!database) {
+        showMessage('error', 'Firebase belum terhubung! Silakan setup Firebase terlebih dahulu.');
+        return;
+    }
+    
+    // Show refresh animation
+    const button = document.getElementById('refreshData');
+    if (!button) return;
+    
+    const originalText = button.textContent;
+    button.innerHTML = '<span class="loading" style="width: 16px; height: 16px; margin-right: 8px;"></span> Memperbarui...';
+    button.disabled = true;
+    
+    // Fetch data
+    fetchAttendanceData();
+    fetchUsersData();
+    
+    // Reset button after delay
+    setTimeout(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+        showMessage('success', 'Data berhasil diperbarui');
+    }, 1000);
+}
+
+function handleSearch() {
+    const searchTerm = this.value.toLowerCase();
+    filterTableData(searchTerm);
+}
+
+function clearSearch() {
+    const searchInput = document.getElementById('searchAttendance');
+    if (searchInput) {
+        searchInput.value = '';
+        filterTableData('');
+        searchInput.focus();
     }
 }

@@ -1,6 +1,3 @@
-// Perbaikan: Pastikan nama fungsi konsisten di seluruh kode
-// Fungsi handleDataRefresh sudah digunakan dalam event listener, tetapi nama yang sebenarnya adalah handleDataRefresh
-
 // ==========================================
 // Firebase Configuration
 // ==========================================
@@ -33,6 +30,8 @@ let scannerOptions = {
 // ==========================================
 document.addEventListener('DOMContentLoaded', function() {
     try {
+        console.log("Initializing app...");
+        
         // Mobile menu toggle
         initializeMobileMenu();
         
@@ -57,6 +56,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Initial screen size check
         adjustForScreenSize();
+        
+        // Jika berada di tab scan, inisialisasi scanner
+        if (document.getElementById('scan') && document.getElementById('scan').classList.contains('active')) {
+            console.log("Tab scan aktif, inisialisasi scanner...");
+            setTimeout(() => {
+                initScanner();
+            }, 1000); // Delay inisialisasi scanner untuk memastikan DOM sudah siap
+        }
+        
+        console.log("App initialized successfully");
     } catch (error) {
         console.error('Error initializing app:', error);
         showErrorMessage('Terjadi kesalahan saat inisialisasi aplikasi: ' + error.message);
@@ -65,9 +74,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Fungsi untuk menampilkan error di UI
 function showErrorMessage(message) {
+    console.error("Error message:", message);
+    
     const errorDiv = document.createElement('div');
     errorDiv.className = 'error-message';
     errorDiv.style.display = 'block';
+    errorDiv.style.padding = '10px';
+    errorDiv.style.margin = '10px 0';
+    errorDiv.style.backgroundColor = '#f8d7da';
+    errorDiv.style.color = '#721c24';
+    errorDiv.style.borderRadius = '4px';
+    errorDiv.style.border = '1px solid #f5c6cb';
     errorDiv.textContent = message;
     
     // Cari tempat untuk menampilkan error
@@ -185,7 +202,7 @@ function adjustScannerSize() {
     }
     
     // Stop and restart scanner with new dimensions
-    if (qrScanner._isScanning) {
+    if (qrScanner && qrScanner._isScanning) {
         qrScanner.stop().then(() => {
             startScanner();
         }).catch(error => {
@@ -199,9 +216,13 @@ function adjustScannerSize() {
 // ==========================================
 function initializeFirebase(config) {
     try {
+        console.log("Initializing Firebase...");
+        
         // Initialize Firebase
         firebaseApp = firebase.initializeApp(config);
         database = firebase.database();
+        
+        console.log("Firebase initialized successfully");
         
         // Update status
         const firebaseStatus = document.getElementById('firebaseStatus');
@@ -219,10 +240,6 @@ function initializeFirebase(config) {
         // Setup event listeners
         setupEventListeners();
         
-        // If we're on the scan tab, initialize scanner
-        if (document.getElementById('scan') && document.getElementById('scan').classList.contains('active')) {
-            initScanner();
-        }
     } catch (error) {
         console.error('Error initializing Firebase:', error);
         
@@ -242,8 +259,9 @@ function initializeFirebase(config) {
 function initializeTabs() {
     document.querySelectorAll('.tab[data-tab], .tab-link[data-tab]').forEach(tab => {
         tab.addEventListener('click', function(e) {
-            if (e.preventDefault) e.preventDefault(); // Prevent default action for links
+            if (e && e.preventDefault) e.preventDefault(); // Prevent default action for links
             const tabId = this.getAttribute('data-tab');
+            console.log("Switching to tab:", tabId);
             
             // Update active tab
             document.querySelectorAll('.tab[data-tab]').forEach(t => {
@@ -272,11 +290,22 @@ function initializeTabs() {
                 
                 // Initialize scanner if scan tab is active
                 if (tabId === 'scan' && database) {
-                    initScanner();
+                    console.log("Tab scan active, initializing scanner...");
+                    // Bersihkan area scanner sebelum inisialisasi baru
+                    const readerElement = document.getElementById('reader');
+                    if (readerElement) {
+                        readerElement.innerHTML = '';
+                    }
+                    
+                    // Jadwalkan inisialisasi scanner setelah DOM dirender
+                    setTimeout(() => {
+                        initScanner();
+                    }, 500);
                 }
                 
                 // Stop scanner if moving away from scan tab
                 if (tabId !== 'scan' && qrScanner && qrScanner._isScanning) {
+                    console.log("Stopping scanner as we're leaving scan tab");
                     qrScanner.stop().catch(err => console.error('Error stopping scanner:', err));
                 }
             }
@@ -327,40 +356,47 @@ function initializeSubtabs() {
 // ==========================================
 function setupEventListeners() {
     try {
+        console.log("Setting up event listeners...");
+        
         // Register new user
         const registrationForm = document.getElementById('registrationForm');
         if (registrationForm) {
             registrationForm.addEventListener('submit', handleRegistration);
+            console.log("Registration form listener set up");
         }
         
         // Confirm attendance
         const confirmBtn = document.getElementById('confirmAttendance');
         if (confirmBtn) {
             confirmBtn.addEventListener('click', handleAttendanceConfirmation);
+            console.log("Attendance confirmation listener set up");
         }
         
         // Download barcode
         const downloadBtn = document.getElementById('downloadBarcode');
         if (downloadBtn) {
             downloadBtn.addEventListener('click', handleBarcodeDownload);
+            console.log("Download barcode listener set up");
         }
         
         // Refresh database
         const refreshBtn = document.getElementById('refreshData');
         if (refreshBtn) {
-            // PERBAIKAN: Gunakan fungsi handleDataRefresh yang sudah didefinisikan
             refreshBtn.addEventListener('click', handleDataRefresh);
+            console.log("Refresh data listener set up");
         }
         
         // Search and filter
         const searchInput = document.getElementById('searchAttendance');
         if (searchInput) {
             searchInput.addEventListener('input', handleSearch);
+            console.log("Search listener set up");
             
             // Add clear button functionality
             const clearBtn = document.getElementById('clearSearch');
             if (clearBtn) {
                 clearBtn.addEventListener('click', clearSearch);
+                console.log("Clear search listener set up");
             }
         }
         
@@ -374,6 +410,8 @@ function setupEventListeners() {
                 this.style.transform = 'scale(1)';
             });
         });
+        
+        console.log("All event listeners set up successfully");
     } catch (error) {
         console.error('Error setting up event listeners:', error);
         showErrorMessage('Terjadi kesalahan saat setup event listeners: ' + error.message);
@@ -384,9 +422,11 @@ function setupEventListeners() {
 // Scanner Functions
 // ==========================================
 function initScanner() {
-    const readerElement = document.getElementById('reader');
+    console.log("Initializing scanner...");
     
-    if (!readerElement || readerElement.innerHTML !== '') {
+    const readerElement = document.getElementById('reader');
+    if (!readerElement) {
+        console.error("Reader element not found");
         return;
     }
     
@@ -394,97 +434,140 @@ function initScanner() {
         // Clear any previous HTML
         readerElement.innerHTML = '';
         
+        // Create scanner UI first
+        const scannerUI = document.createElement('div');
+        scannerUI.className = 'scanner-ui';
+        scannerUI.style.position = 'relative';
+        scannerUI.style.minHeight = '250px';
+        scannerUI.style.backgroundColor = '#f8f9fa';
+        scannerUI.style.border = '1px solid #ddd';
+        scannerUI.style.borderRadius = '8px';
+        scannerUI.style.display = 'flex';
+        scannerUI.style.alignItems = 'center';
+        scannerUI.style.justifyContent = 'center';
+        scannerUI.style.flexDirection = 'column';
+        scannerUI.style.padding = '20px';
+        scannerUI.style.marginBottom = '20px';
+        
+        // Add camera access button
+        const cameraButton = document.createElement('button');
+        cameraButton.textContent = 'Izinkan Akses Kamera';
+        cameraButton.className = 'camera-button';
+        cameraButton.style.marginBottom = '10px';
+        
+        const cameraText = document.createElement('p');
+        cameraText.textContent = 'Klik tombol di atas untuk mengaktifkan scanner barcode';
+        cameraText.style.fontSize = '0.9rem';
+        cameraText.style.color = '#666';
+        cameraText.style.textAlign = 'center';
+        
+        scannerUI.appendChild(cameraButton);
+        scannerUI.appendChild(cameraText);
+        
+        // Replace reader content with our UI
+        readerElement.appendChild(scannerUI);
+        
+        // Listener for camera button
+        cameraButton.addEventListener('click', function() {
+            startQRScanner(readerElement);
+        });
+        
+        console.log("Scanner UI initialized, waiting for user to grant camera access");
+    } catch (error) {
+        console.error('Error initializing scanner:', error);
+        if (readerElement) {
+            readerElement.innerHTML = `
+                <div class="error-message" style="padding: 15px; background-color: #f8d7da; color: #721c24; border-radius: 4px; border: 1px solid #f5c6cb;">
+                    Terjadi kesalahan inisialisasi scanner: ${error.message}
+                </div>
+            `;
+        }
+    }
+}
+
+function startQRScanner(readerElement) {
+    console.log("Starting QR Scanner...");
+    
+    try {
+        // Clear previous content
+        readerElement.innerHTML = '';
+        
+        // Show loading indicator
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.style.textAlign = 'center';
+        loadingIndicator.style.padding = '20px';
+        loadingIndicator.innerHTML = `
+            <div style="display: inline-block; width: 30px; height: 30px; border: 3px solid rgba(0,0,0,0.1); border-radius: 50%; border-top-color: var(--primary-color, #1b5e20); animation: spin 1s linear infinite;"></div>
+            <p style="margin-top: 10px;">Memulai kamera...</p>
+        `;
+        readerElement.appendChild(loadingIndicator);
+        
         // Create new scanner instance
         const html5QrCode = new Html5Qrcode("reader");
         qrScanner = html5QrCode;
         
-        // Set up scanner configuration
-        adjustScannerSize();
-        
-        // Start scanner
-        startScanner();
-    } catch (error) {
-        console.error('Error initializing scanner:', error);
-        if (readerElement) {
-            readerElement.innerHTML = `<div class="error-message">Terjadi kesalahan inisialisasi scanner: ${error.message}</div>`;
-        }
-    }
-}
-
-function startScanner() {
-    if (!qrScanner) return;
-    
-    // Add UI enhancements first
-    const readerElement = document.getElementById('reader');
-    if (readerElement) {
-        // Add camera permission UI
-        if (!qrScanner._isScanning) {
-            const permissionOverlay = document.createElement('div');
-            permissionOverlay.id = 'permission-overlay';
-            permissionOverlay.style.position = 'absolute';
-            permissionOverlay.style.top = '0';
-            permissionOverlay.style.left = '0';
-            permissionOverlay.style.width = '100%';
-            permissionOverlay.style.height = '100%';
-            permissionOverlay.style.display = 'flex';
-            permissionOverlay.style.flexDirection = 'column';
-            permissionOverlay.style.alignItems = 'center';
-            permissionOverlay.style.justifyContent = 'center';
-            permissionOverlay.style.backgroundColor = 'rgba(0,0,0,0.7)';
-            permissionOverlay.style.borderRadius = 'var(--card-border-radius)';
-            permissionOverlay.style.zIndex = '10';
-            permissionOverlay.style.color = 'white';
-            permissionOverlay.style.padding = '1rem';
-            permissionOverlay.style.textAlign = 'center';
-            
-            permissionOverlay.innerHTML = `
-                <p style="margin-bottom: 1rem">Untuk menggunakan scanner, izinkan akses ke kamera Anda</p>
-                <button id="camera-permission-btn" style="background-color: var(--primary-color); color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">Izinkan Kamera</button>
-            `;
-            
-            readerElement.style.position = 'relative';
-            readerElement.style.minHeight = '200px';
-            readerElement.appendChild(permissionOverlay);
-            
-            // Add permission button click handler
-            document.getElementById('camera-permission-btn').addEventListener('click', function() {
-                permissionOverlay.remove();
-                startQRScanner();
+        // Camera initialization
+        Html5Qrcode.getCameras()
+            .then(devices => {
+                console.log("Cameras found:", devices);
+                
+                if (devices && devices.length > 0) {
+                    // Use first camera (usually back camera on mobile)
+                    const cameraId = devices[0].id;
+                    
+                    // Configure scanner
+                    adjustScannerSize();
+                    
+                    // Define success callback
+                    const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+                        // Handle on success
+                        qrScanner.stop().catch(err => console.error('Error stopping scanner after successful scan:', err));
+                        handleSuccessfulScan(decodedText);
+                    };
+                    
+                    // Determine preferred camera
+                    const facingMode = isMobileDevice() ? "environment" : "user";
+                    
+                    // Start scanner with configuration
+                    const config = {
+                        fps: 10,
+                        qrbox: scannerOptions.qrbox,
+                        aspectRatio: 1.0
+                    };
+                    
+                    const cameraScanConfig = {
+                        facingMode: facingMode
+                    };
+                    
+                    // Start the scanner
+                    html5QrCode.start(
+                        cameraScanConfig, 
+                        config, 
+                        qrCodeSuccessCallback,
+                        handleScanError
+                    ).then(() => {
+                        console.log("QR Code scanning started successfully");
+                    }).catch(err => {
+                        console.error('Error starting scanner:', err);
+                        displayScannerError(err, readerElement);
+                    });
+                } else {
+                    throw new Error("Tidak ada kamera yang terdeteksi pada perangkat ini");
+                }
+            })
+            .catch(err => {
+                console.error("Error getting cameras:", err);
+                displayScannerError(err, readerElement);
             });
-        } else {
-            startQRScanner();
-        }
-    }
-}
-
-function startQRScanner() {
-    try {
-        const qrCodeSuccessCallback = (decodedText, decodedResult) => {
-            // Handle on success
-            qrScanner.stop().catch(err => console.error('Error stopping scanner after successful scan:', err));
-            handleSuccessfulScan(decodedText);
-        };
-        
-        // Determine facing mode based on device
-        const facingMode = isMobileDevice() ? "environment" : "user";
-        
-        // Start scanner with optimal configuration
-        qrScanner.start(
-            { facingMode: facingMode }, 
-            scannerOptions, 
-            qrCodeSuccessCallback,
-            handleScanError
-        ).catch(err => {
-            console.error('Error starting scanner:', err);
-            displayScannerError(err);
-        });
     } catch (error) {
-        console.error('Error starting QR scanner:', error);
-        displayScannerError(error);
+        console.error('Error in startQRScanner:', error);
+        displayScannerError(error, readerElement);
     }
 }
 
 function handleSuccessfulScan(decodedText) {
+    console.log("Successful scan:", decodedText);
+    
     try {
         const userData = JSON.parse(decodedText);
         currentUser = userData;
@@ -517,6 +600,8 @@ function handleSuccessfulScan(decodedText) {
             }, 100);
         }
     } catch (e) {
+        console.error("Error processing scan result:", e);
+        
         // Play error sound
         playSound('error');
         
@@ -530,15 +615,20 @@ function handleSuccessfulScan(decodedText) {
 }
 
 function handleScanError(error) {
-    console.warn('QR code scanning error:', error);
-    // Don't show errors for common issues like no QR code found
-    if (error !== 'No QR code found') {
-        displayScannerError(error);
+    // Ignore no QR code found errors as they happen continuously during scanning
+    if (error === 'No QR code found') {
+        return;
     }
+    
+    console.warn('QR code scanning error:', error);
+    displayScannerError(error);
 }
 
-function displayScannerError(error) {
-    const readerElement = document.getElementById('reader');
+function displayScannerError(error, readerElement) {
+    if (!readerElement) {
+        readerElement = document.getElementById('reader');
+    }
+    
     if (!readerElement) return;
     
     // Cleanup any previous error messages
@@ -547,54 +637,65 @@ function displayScannerError(error) {
         existingError.remove();
     }
     
+    // Stop the scanner if it's running
+    if (qrScanner && qrScanner._isScanning) {
+        qrScanner.stop().catch(err => console.error('Error stopping scanner:', err));
+    }
+    
+    // Clear the reader
+    readerElement.innerHTML = '';
+    
     // Create error message
     const errorDiv = document.createElement('div');
     errorDiv.className = 'scanner-error';
-    errorDiv.style.position = 'absolute';
-    errorDiv.style.top = '0';
-    errorDiv.style.left = '0';
-    errorDiv.style.width = '100%';
-    errorDiv.style.padding = '1rem';
-    errorDiv.style.backgroundColor = '#c62828';
-    errorDiv.style.color = 'white';
-    errorDiv.style.borderRadius = 'var(--card-border-radius) var(--card-border-radius) 0 0';
+    errorDiv.style.padding = '15px';
+    errorDiv.style.backgroundColor = '#f8d7da';
+    errorDiv.style.color = '#721c24';
+    errorDiv.style.borderRadius = '8px';
+    errorDiv.style.border = '1px solid #f5c6cb';
+    errorDiv.style.marginBottom = '15px';
     errorDiv.style.textAlign = 'center';
-    errorDiv.style.zIndex = '5';
     
     // Determine error message
     let errorMessage = 'Terjadi kesalahan pada scanner.';
+    let errorDetails = '';
     
     if (error.toString().includes('Permission')) {
-        errorMessage = 'Akses kamera ditolak. Mohon izinkan akses kamera di pengaturan browser Anda.';
+        errorMessage = 'Akses kamera ditolak oleh browser.';
+        errorDetails = 'Mohon izinkan akses kamera di pengaturan browser Anda.';
     } else if (error.toString().includes('not found') || error.toString().includes('tidak ditemukan')) {
-        errorMessage = 'Kamera tidak ditemukan. Pastikan perangkat Anda memiliki kamera.';
+        errorMessage = 'Kamera tidak ditemukan.';
+        errorDetails = 'Pastikan perangkat Anda memiliki kamera yang berfungsi.';
     } else if (error.toString().includes('insecure context')) {
-        errorMessage = 'Scanner memerlukan koneksi HTTPS yang aman.';
+        errorMessage = 'Halaman web ini tidak aman (HTTP).';
+        errorDetails = 'Scanner memerlukan koneksi HTTPS yang aman untuk mengakses kamera.';
+    } else if (error.toString().includes('NotReadableError')) {
+        errorMessage = 'Kamera sedang digunakan oleh aplikasi lain.';
+        errorDetails = 'Tutup aplikasi lain yang mungkin menggunakan kamera, atau coba gunakan browser yang berbeda.';
     }
     
-    errorDiv.textContent = errorMessage;
+    errorDiv.innerHTML = `
+        <h4 style="margin-top: 0; margin-bottom: 10px;">${errorMessage}</h4>
+        <p style="margin-bottom: 15px;">${errorDetails}</p>
+    `;
     
     // Add retry button
     const retryButton = document.createElement('button');
     retryButton.textContent = 'Coba Lagi';
-    retryButton.style.marginTop = '0.5rem';
-    retryButton.style.padding = '0.25rem 0.5rem';
-    retryButton.style.backgroundColor = 'white';
-    retryButton.style.color = '#c62828';
+    retryButton.style.backgroundColor = '#28a745';
+    retryButton.style.color = 'white';
     retryButton.style.border = 'none';
+    retryButton.style.padding = '8px 16px';
     retryButton.style.borderRadius = '4px';
     retryButton.style.cursor = 'pointer';
     
     retryButton.addEventListener('click', function() {
-        errorDiv.remove();
         initScanner();
     });
     
-    errorDiv.appendChild(document.createElement('br'));
     errorDiv.appendChild(retryButton);
     
     // Add to DOM
-    readerElement.style.position = 'relative';
     readerElement.appendChild(errorDiv);
 }
 
@@ -602,6 +703,8 @@ function displayScannerError(error) {
 // QR Code Functions
 // ==========================================
 function generateQRCode(data) {
+    console.log("Generating QR code for:", data.nama);
+    
     const qrcodeElement = document.getElementById('qrcode');
     if (!qrcodeElement) return;
     
@@ -1001,7 +1104,6 @@ function handleBarcodeDownload() {
     }
 }
 
-// PERBAIKAN: Mendefinisikan fungsi handleDataRefresh yang sebelumnya hilang
 function handleDataRefresh() {
     if (!database) {
         showMessage('error', 'Firebase belum terhubung! Silakan setup Firebase terlebih dahulu.');
@@ -1041,3 +1143,843 @@ function clearSearch() {
         searchInput.focus();
     }
 }
+
+// ==========================================
+// Utility Functions
+// ==========================================
+function generateUniqueId() {
+    return 'user_' + Date.now() + Math.floor(Math.random() * 1000);
+}
+
+function formatDate(isoString) {
+    try {
+        const date = new Date(isoString);
+        return date.toLocaleString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+    } catch (e) {
+        console.error('Error formatting date:', e);
+        return isoString || 'Tanggal tidak valid';
+    }
+}
+
+function showMessage(type, message, duration = 3000) {
+    // Clear any existing messages
+    document.querySelectorAll('.success-message, .error-message, .info-message').forEach(msg => {
+        msg.style.display = 'none';
+    });
+    
+    // Determine which message element to use
+    let messageElement;
+    
+    if (type === 'success') {
+        if (document.querySelector('.tab-content.active') === document.getElementById('scan')) {
+            messageElement = document.getElementById('attendanceSuccess');
+        } else if (document.querySelector('.tab-content.active') === document.getElementById('register')) {
+            messageElement = document.getElementById('registrationSuccess');
+        }
+    } else if (type === 'error') {
+        if (document.querySelector('.tab-content.active') === document.getElementById('scan')) {
+            messageElement = document.getElementById('attendanceError');
+        } else if (document.querySelector('.tab-content.active') === document.getElementById('register')) {
+            messageElement = document.getElementById('registrationError');
+        }
+    }
+    
+    // If no specific message element found, create a temporary one
+    if (!messageElement) {
+        messageElement = document.createElement('div');
+        messageElement.className = type + '-message';
+        messageElement.style.position = 'fixed';
+        messageElement.style.bottom = '20px';
+        messageElement.style.left = '50%';
+        messageElement.style.transform = 'translateX(-50%)';
+        messageElement.style.zIndex = '1000';
+        messageElement.style.minWidth = '300px';
+        messageElement.style.maxWidth = '90%';
+        messageElement.style.padding = '1rem';
+        messageElement.style.borderRadius = '4px';
+        messageElement.style.boxShadow = '0 3px 10px rgba(0,0,0,0.2)';
+        messageElement.style.animation = 'fadeIn 0.3s';
+        
+        document.body.appendChild(messageElement);
+    }
+    
+    // Set message and show
+    messageElement.textContent = message;
+    messageElement.style.display = 'block';
+    
+    // Hide after duration
+    setTimeout(() => {
+        messageElement.style.animation = 'fadeOut 0.3s';
+        setTimeout(() => {
+            messageElement.style.display = 'none';
+            // Remove temporary message from DOM
+            if (!messageElement.id) {
+                messageElement.remove();
+            }
+        }, 300);
+    }, duration);
+    
+    // Play appropriate sound
+    playSound(type);
+}
+
+function playSound(type) {
+    // Create audio element if browser supports it
+    if (typeof Audio !== 'undefined') {
+        let sound;
+        
+        if (type === 'success') {
+            sound = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADYgD///////////////////////////////////////////8AAAA8TEFNRTMuMTAwAZYAAAAAAAAAABSAJAJAQgAAgAAAA2L2YLgXAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sQZAAP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=');
+        } else if (type === 'error') {
+            sound = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADYgD///////////////////////////////////////////8AAAA8TEFNRTMuMTAwAZYAAAAAAAAAABSAJAJAQgAAgAAAA2L2YLgXAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sQZAAP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=');
+        }
+        
+        if (sound) {
+            sound.volume = 0.4;
+            sound.play().catch(e => {
+                console.warn('Could not play sound:', e);
+            });
+        }
+    }
+}
+
+function isMobileDevice() {
+    // Comprehensive check for mobile devices
+    return (
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /Macintosh/i.test(navigator.userAgent)) ||
+        window.matchMedia("(max-width: 768px)").matches
+    );
+}
+
+// ==========================================
+// Table Update Functions
+// ==========================================
+function updateAttendanceTable(data, page = 1) {
+    const tableBody = document.querySelector('#attendanceTable tbody');
+    if (!tableBody) return;
+    
+    tableBody.innerHTML = '';
+    
+    if (!data || data.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Tidak ada data absensi.</td></tr>';
+        
+        const paginationElement = document.getElementById('attendancePagination');
+        if (paginationElement) {
+            paginationElement.innerHTML = '';
+        }
+        return;
+    }
+    
+    // Pagination
+    const itemsPerPage = isMobileDevice() ? 5 : 10;
+    const totalPages = Math.ceil(data.length / itemsPerPage);
+    const startIndex = (page - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, data.length);
+    const currentPageData = data.slice(startIndex, endIndex);
+    
+    // Populate table
+    currentPageData.forEach((record, index) => {
+        const row = document.createElement('tr');
+        
+        // Apply highlight to newly added row
+        if (index === 0 && page === 1) {
+            row.classList.add('highlight-row');
+            row.style.animation = 'pulse 2s';
+            row.style.backgroundColor = '#e8f5e9';
+        }
+        
+        const idCell = document.createElement('td');
+        idCell.textContent = record.userId || '-';
+        row.appendChild(idCell);
+        
+        const nameCell = document.createElement('td');
+        nameCell.textContent = record.nama || '-';
+        row.appendChild(nameCell);
+        
+        const majorCell = document.createElement('td');
+        majorCell.textContent = record.jurusan || '-';
+        row.appendChild(majorCell);
+        
+        const campusCell = document.createElement('td');
+        campusCell.textContent = record.kampus || '-';
+        row.appendChild(campusCell);
+        
+        const timeCell = document.createElement('td');
+        timeCell.textContent = formatDate(record.timestamp);
+        row.appendChild(timeCell);
+        
+        tableBody.appendChild(row);
+    });
+    
+    // Update pagination
+    updatePagination('attendancePagination', page, totalPages, (newPage) => {
+        updateAttendanceTable(data, newPage);
+    });
+}
+
+function updateUsersTable(data, page = 1) {
+    const tableBody = document.querySelector('#usersTable tbody');
+    if (!tableBody) return;
+    
+    tableBody.innerHTML = '';
+    
+    if (!data || data.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Tidak ada data pengguna.</td></tr>';
+        
+        const paginationElement = document.getElementById('usersPagination');
+        if (paginationElement) {
+            paginationElement.innerHTML = '';
+        }
+        return;
+    }
+    
+    // Pagination
+    const itemsPerPage = isMobileDevice() ? 5 : 10;
+    const totalPages = Math.ceil(data.length / itemsPerPage);
+    const startIndex = (page - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, data.length);
+    const currentPageData = data.slice(startIndex, endIndex);
+    
+    // Populate table
+    currentPageData.forEach((user, index) => {
+        const row = document.createElement('tr');
+        
+        // Apply highlight to newly added row
+        if (index === 0 && page === 1) {
+            row.classList.add('highlight-row');
+            row.style.animation = 'pulse 2s';
+            row.style.backgroundColor = '#e8f5e9';
+        }
+        
+        const idCell = document.createElement('td');
+        idCell.textContent = user.id || '-';
+        row.appendChild(idCell);
+        
+        const nameCell = document.createElement('td');
+        nameCell.textContent = user.nama || '-';
+        row.appendChild(nameCell);
+        
+        const majorCell = document.createElement('td');
+        majorCell.textContent = user.jurusan || '-';
+        row.appendChild(majorCell);
+        
+        const campusCell = document.createElement('td');
+        campusCell.textContent = user.kampus || '-';
+        row.appendChild(campusCell);
+        
+        const timeCell = document.createElement('td');
+        timeCell.textContent = formatDate(user.createdAt);
+        row.appendChild(timeCell);
+        
+        tableBody.appendChild(row);
+    });
+    
+    // Update pagination
+    updatePagination('usersPagination', page, totalPages, (newPage) => {
+        updateUsersTable(data, newPage);
+    });
+}
+
+function updatePagination(elementId, currentPage, totalPages, callback) {
+    const paginationElement = document.getElementById(elementId);
+    if (!paginationElement) return;
+    
+    paginationElement.innerHTML = '';
+    
+    if (totalPages <= 1) return;
+    
+    // Previous button
+    const prevButton = document.createElement('button');
+    prevButton.innerHTML = '&laquo;';
+    prevButton.disabled = currentPage === 1;
+    prevButton.setAttribute('aria-label', 'Previous page');
+    prevButton.addEventListener('click', () => {
+        if (currentPage > 1) {
+            callback(currentPage - 1);
+        }
+    });
+    paginationElement.appendChild(prevButton);
+    
+    // Page buttons
+    const maxButtonsDesktop = 5;
+    const maxButtonsMobile = 3;
+    const maxButtons = isMobileDevice() ? maxButtonsMobile : maxButtonsDesktop;
+    
+    let startPage, endPage;
+    
+    if (totalPages <= maxButtons) {
+        // Show all pages
+        startPage = 1;
+        endPage = totalPages;
+    } else {
+        // Calculate start and end pages for pagination window
+        const halfMax = Math.floor(maxButtons / 2);
+        
+        if (currentPage <= halfMax + 1) {
+            // Near the start
+            startPage = 1;
+            endPage = maxButtons;
+        } else if (currentPage >= totalPages - halfMax) {
+            // Near the end
+            startPage = totalPages - maxButtons + 1;
+            endPage = totalPages;
+        } else {
+            // Middle
+            startPage = currentPage - halfMax;
+            endPage = currentPage + halfMax;
+        }
+    }
+    
+    // First page button (if not in range)
+    if (startPage > 1) {
+        const firstButton = document.createElement('button');
+        firstButton.textContent = '1';
+        firstButton.addEventListener('click', () => {
+            callback(1);
+        });
+        paginationElement.appendChild(firstButton);
+        
+        if (startPage > 2) {
+            const ellipsis = document.createElement('span');
+            ellipsis.innerHTML = '&hellip;';
+            ellipsis.style.margin = '0 5px';
+            paginationElement.appendChild(ellipsis);
+        }
+    }
+    
+    // Page buttons
+    for (let i = startPage; i <= endPage; i++) {
+        const pageButton = document.createElement('button');
+        pageButton.textContent = i;
+        pageButton.classList.toggle('active', i === currentPage);
+        pageButton.setAttribute('aria-label', `Page ${i}`);
+        if (i === currentPage) {
+            pageButton.setAttribute('aria-current', 'page');
+        }
+        pageButton.addEventListener('click', () => {
+            callback(i);
+        });
+        paginationElement.appendChild(pageButton);
+    }
+    
+    // Last page button (if not in range)
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            const ellipsis = document.createElement('span');
+            ellipsis.innerHTML = '&hellip;';
+            ellipsis.style.margin = '0 5px';
+            paginationElement.appendChild(ellipsis);
+        }
+        
+        const lastButton = document.createElement('button');
+        lastButton.textContent = totalPages;
+        lastButton.addEventListener('click', () => {
+            callback(totalPages);
+        });
+        paginationElement.appendChild(lastButton);
+    }
+    
+    // Next button
+    const nextButton = document.createElement('button');
+    nextButton.innerHTML = '&raquo;';
+    nextButton.disabled = currentPage === totalPages;
+    nextButton.setAttribute('aria-label', 'Next page');
+    nextButton.addEventListener('click', () => {
+        if (currentPage < totalPages) {
+            callback(currentPage + 1);
+        }
+    });
+    paginationElement.appendChild(nextButton);
+}
+
+// ==========================================
+// Search and Filter Functions
+// ==========================================
+function filterTableData(searchTerm) {
+    const activeSubtab = document.querySelector('.tab[data-subtab].active');
+    if (!activeSubtab) return;
+    
+    const subtabId = activeSubtab.getAttribute('data-subtab');
+    
+    if (subtabId === 'attendance') {
+        if (!database) return;
+        
+        database.ref('attendance').once('value')
+            .then(snapshot => {
+                const data = snapshot.val() || {};
+                
+                // Convert to array
+                let attendanceArray = Object.values(data);
+                
+                // Filter by search term
+                if (searchTerm) {
+                    attendanceArray = attendanceArray.filter(record => {
+                        return (
+                            (record.nama && record.nama.toLowerCase().includes(searchTerm)) ||
+                            (record.jurusan && record.jurusan.toLowerCase().includes(searchTerm)) ||
+                            (record.kampus && record.kampus.toLowerCase().includes(searchTerm)) ||
+                            (record.userId && record.userId.toLowerCase().includes(searchTerm))
+                        );
+                    });
+                }
+                
+                // Sort by timestamp (newest first)
+                attendanceArray.sort((a, b) => {
+                    return new Date(b.timestamp || 0) - new Date(a.timestamp || 0);
+                });
+                
+                updateAttendanceTable(attendanceArray);
+            })
+            .catch(error => {
+                console.error('Error filtering attendance data:', error);
+                showMessage('error', `Terjadi kesalahan saat memfilter data: ${error.message}`);
+            });
+    } else if (subtabId === 'users') {
+        if (!database) return;
+        
+        database.ref('users').once('value')
+            .then(snapshot => {
+                const data = snapshot.val() || {};
+                
+                // Convert to array
+                let usersArray = Object.values(data);
+                
+                // Filter by search term
+                if (searchTerm) {
+                    usersArray = usersArray.filter(user => {
+                        return (
+                            (user.nama && user.nama.toLowerCase().includes(searchTerm)) ||
+                            (user.jurusan && user.jurusan.toLowerCase().includes(searchTerm)) ||
+                            (user.kampus && user.kampus.toLowerCase().includes(searchTerm)) ||
+                            (user.id && user.id.toLowerCase().includes(searchTerm))
+                        );
+                    });
+                }
+                
+                // Sort by createdAt (newest first)
+                usersArray.sort((a, b) => {
+                    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                });
+                
+                updateUsersTable(usersArray);
+            })
+            .catch(error => {
+                console.error('Error filtering user data:', error);
+                showMessage('error', `Terjadi kesalahan saat memfilter data: ${error.message}`);
+            });
+    }
+}
+
+// Add keyframe animations for fadeOut if not present
+(function addKeyframes() {
+    if (!document.getElementById('dynamic-animations')) {
+        const style = document.createElement('style');
+        style.id = 'dynamic-animations';
+        style.textContent = `
+            @keyframes fadeOut {
+                from { opacity: 1; transform: translateY(0); }
+                to { opacity: 0; transform: translateY(10px); }
+            }
+            
+            @keyframes highlightRow {
+                0% { background-color: rgba(67, 160, 71, 0.3); }
+                100% { background-color: transparent; }
+            }
+            
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+                100% { transform: scale(1); }
+            }
+            
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+})();
+
+// ==========================================
+// Perbaikan Scanner untuk Akses Kamera
+// ==========================================
+
+// Fungsi khusus untuk memperbaiki masalah akses kamera
+function fixCameraAccess() {
+    console.log("Memperbaiki akses kamera...");
+    
+    // 1. Hapus scanner yang ada jika ada
+    if (qrScanner && qrScanner._isScanning) {
+        qrScanner.stop().catch(err => console.error('Error stopping scanner:', err));
+        qrScanner = null;
+    }
+    
+    // 2. Bersihkan elemen reader
+    const readerElement = document.getElementById('reader');
+    if (!readerElement) {
+        console.error("Reader element not found");
+        return;
+    }
+    
+    readerElement.innerHTML = '';
+    
+    // 3. Buat UI baru untuk scanner dengan tombol izin
+    const scannerContainer = document.createElement('div');
+    scannerContainer.className = 'scanner-container';
+    scannerContainer.style.position = 'relative';
+    scannerContainer.style.minHeight = '300px';
+    scannerContainer.style.border = '1px solid #ddd';
+    scannerContainer.style.borderRadius = '8px';
+    scannerContainer.style.backgroundColor = '#f8f9fa';
+    scannerContainer.style.display = 'flex';
+    scannerContainer.style.flexDirection = 'column';
+    scannerContainer.style.alignItems = 'center';
+    scannerContainer.style.justifyContent = 'center';
+    scannerContainer.style.padding = '20px';
+    scannerContainer.style.textAlign = 'center';
+    
+    // 4. Tambahkan tombol untuk memulai kamera
+    const cameraButton = document.createElement('button');
+    cameraButton.id = 'start-camera';
+    cameraButton.textContent = 'Mulai Kamera';
+    cameraButton.style.marginBottom = '10px';
+    cameraButton.style.padding = '12px 20px';
+    cameraButton.style.fontSize = '16px';
+    cameraButton.style.backgroundColor = '#1b5e20';
+    cameraButton.style.color = 'white';
+    cameraButton.style.border = 'none';
+    cameraButton.style.borderRadius = '4px';
+    cameraButton.style.cursor = 'pointer';
+    
+    // 5. Tambahkan instruksi
+    const instructionText = document.createElement('p');
+    instructionText.textContent = 'Klik tombol di atas untuk mengaktifkan kamera dan mulai scan barcode';
+    instructionText.style.color = '#666';
+    instructionText.style.fontSize = '14px';
+    
+    // 6. Tambahkan ikon kamera
+    const cameraIcon = document.createElement('div');
+    cameraIcon.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#1b5e20" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+        </svg>
+    `;
+    cameraIcon.style.marginBottom = '15px';
+    
+    // 7. Tambahkan ke DOM
+    scannerContainer.appendChild(cameraIcon);
+    scannerContainer.appendChild(cameraButton);
+    scannerContainer.appendChild(instructionText);
+    
+    readerElement.appendChild(scannerContainer);
+    
+    // 8. Event listener untuk tombol kamera
+    cameraButton.addEventListener('click', function() {
+        startCameraWithPermissionRequest();
+    });
+    
+    console.log("UI untuk akses kamera telah diperbaiki");
+}
+
+// Fungsi untuk memulai kamera dengan permintaan izin yang lebih baik
+function startCameraWithPermissionRequest() {
+    console.log("Memulai kamera dengan permintaan izin...");
+    
+    const readerElement = document.getElementById('reader');
+    if (!readerElement) return;
+    
+    // Tampilkan loading indicator
+    readerElement.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center;">
+            <div style="width: 40px; height: 40px; border: 4px solid rgba(0,0,0,0.1); border-radius: 50%; border-top-color: #1b5e20; animation: spin 1s linear infinite; margin-bottom: 15px;"></div>
+            <p>Meminta akses kamera...</p>
+            <p style="font-size: 12px; color: #666; margin-top: 5px;">Mohon izinkan akses ke kamera saat browser meminta izin</p>
+        </div>
+    `;
+    
+    // Periksa dukungan kamera
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        displayScannerError(new Error("Browser Anda tidak mendukung akses kamera. Coba gunakan browser lain seperti Chrome atau Firefox terbaru."));
+        return;
+    }
+    
+    // Minta izin kamera dengan cara yang berbeda
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+        .then(function(stream) {
+            // Izin diberikan, matikan stream karena html5-qrcode akan memintanya lagi
+            stream.getTracks().forEach(track => track.stop());
+            
+            // Buat scanner QR baru
+            initQRScanner();
+        })
+        .catch(function(error) {
+            console.error("Error accessing camera:", error);
+            
+            let errorMessage = "Terjadi kesalahan saat mengakses kamera.";
+            let errorDetail = "";
+            
+            if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+                errorMessage = "Akses kamera ditolak.";
+                errorDetail = "Silakan izinkan akses kamera di pengaturan browser Anda dan coba lagi.";
+            } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+                errorMessage = "Kamera tidak ditemukan.";
+                errorDetail = "Pastikan perangkat Anda memiliki kamera yang berfungsi.";
+            } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
+                errorMessage = "Kamera tidak dapat diakses.";
+                errorDetail = "Kamera mungkin sedang digunakan oleh aplikasi lain. Tutup aplikasi lain yang mungkin menggunakan kamera.";
+            } else if (error.name === "OverconstrainedError") {
+                errorMessage = "Kamera tidak mendukung resolusi yang diminta.";
+                errorDetail = "Coba gunakan pengaturan kamera yang berbeda.";
+            } else if (error.name === "SecurityError" || error.name === "TypeError") {
+                errorMessage = "Akses kamera diblokir oleh kebijakan keamanan.";
+                errorDetail = "Halaman ini memerlukan koneksi HTTPS untuk mengakses kamera.";
+            }
+            
+            displayCustomScannerError(errorMessage, errorDetail);
+        });
+}
+
+// Fungsi untuk menginisialisasi scanner QR baru
+function initQRScanner() {
+    const readerElement = document.getElementById('reader');
+    if (!readerElement) return;
+    
+    // Bersihkan
+    readerElement.innerHTML = '';
+    
+    try {
+        // Buat instance scanner baru
+        const html5QrCode = new Html5Qrcode("reader");
+        qrScanner = html5QrCode;
+        
+        // Set up scanner configuration
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0
+        };
+        
+        // Define success callback
+        const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+            // Handle on success
+            console.log("QR Code detected:", decodedText);
+            qrScanner.stop().catch(err => console.error('Error stopping scanner after successful scan:', err));
+            handleSuccessfulScan(decodedText);
+        };
+        
+        // Determine preferred camera
+        const facingMode = isMobileDevice() ? "environment" : "user";
+        
+        // Start scanner
+        html5QrCode.start(
+            { facingMode: facingMode },
+            config,
+            qrCodeSuccessCallback,
+            (errorMessage) => {
+                // Ignore "No QR code found" errors
+                if (errorMessage !== 'No QR code found') {
+                    console.warn("QR Scan Error:", errorMessage);
+                }
+            }
+        ).then(() => {
+            console.log("Scanner started successfully");
+            
+            // Tambahkan overlay dan petunjuk
+            addScannerOverlay(readerElement);
+        }).catch(err => {
+            console.error('Error starting scanner:', err);
+            displayCustomScannerError("Gagal memulai scanner", err.toString());
+        });
+    } catch (error) {
+        console.error("Error initializing QR scanner:", error);
+        displayCustomScannerError("Gagal menginisialisasi scanner", error.toString());
+    }
+}
+
+// Fungsi untuk menampilkan petunjuk visual pada scanner
+function addScannerOverlay(readerElement) {
+    // Cari elemen video yang dibuat oleh html5-qrcode
+    const videoElement = readerElement.querySelector('video');
+    
+    if (videoElement) {
+        // Buat overlay container
+        const overlayContainer = document.createElement('div');
+        overlayContainer.style.position = 'absolute';
+        overlayContainer.style.top = '0';
+        overlayContainer.style.left = '0';
+        overlayContainer.style.width = '100%';
+        overlayContainer.style.height = '100%';
+        overlayContainer.style.pointerEvents = 'none';
+        overlayContainer.style.zIndex = '2';
+        overlayContainer.style.display = 'flex';
+        overlayContainer.style.flexDirection = 'column';
+        overlayContainer.style.alignItems = 'center';
+        overlayContainer.style.justifyContent = 'center';
+        
+        // Buat target frame
+        const targetFrame = document.createElement('div');
+        targetFrame.style.width = '200px';
+        targetFrame.style.height = '200px';
+        targetFrame.style.border = '2px solid #43a047';
+        targetFrame.style.borderRadius = '20px';
+        targetFrame.style.position = 'relative';
+        
+        // Tambahkan sudut ke target frame
+        const corners = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+        corners.forEach(corner => {
+            const cornerElement = document.createElement('div');
+            cornerElement.style.position = 'absolute';
+            cornerElement.style.width = '20px';
+            cornerElement.style.height = '20px';
+            cornerElement.style.border = '4px solid #43a047';
+            
+            if (corner === 'top-left') {
+                cornerElement.style.top = '-2px';
+                cornerElement.style.left = '-2px';
+                cornerElement.style.borderRight = 'none';
+                cornerElement.style.borderBottom = 'none';
+                cornerElement.style.borderTopLeftRadius = '10px';
+            } else if (corner === 'top-right') {
+                cornerElement.style.top = '-2px';
+                cornerElement.style.right = '-2px';
+                cornerElement.style.borderLeft = 'none';
+                cornerElement.style.borderBottom = 'none';
+                cornerElement.style.borderTopRightRadius = '10px';
+            } else if (corner === 'bottom-left') {
+                cornerElement.style.bottom = '-2px';
+                cornerElement.style.left = '-2px';
+                cornerElement.style.borderRight = 'none';
+                cornerElement.style.borderTop = 'none';
+                cornerElement.style.borderBottomLeftRadius = '10px';
+            } else if (corner === 'bottom-right') {
+                cornerElement.style.bottom = '-2px';
+                cornerElement.style.right = '-2px';
+                cornerElement.style.borderLeft = 'none';
+                cornerElement.style.borderTop = 'none';
+                cornerElement.style.borderBottomRightRadius = '10px';
+            }
+            
+            targetFrame.appendChild(cornerElement);
+        });
+        
+        // Tambahkan petunjuk teks
+        const instructionText = document.createElement('div');
+        instructionText.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        instructionText.style.color = 'white';
+        instructionText.style.padding = '8px 12px';
+        instructionText.style.borderRadius = '4px';
+        instructionText.style.marginTop = '20px';
+        instructionText.style.fontSize = '14px';
+        instructionText.style.textAlign = 'center';
+        instructionText.style.maxWidth = '80%';
+        instructionText.textContent = 'Arahkan kamera ke barcode';
+        
+        // Tambahkan elemen ke overlay
+        overlayContainer.appendChild(targetFrame);
+        overlayContainer.appendChild(instructionText);
+        
+        // Cari parent dari video element
+        const videoParent = videoElement.parentElement;
+        if (videoParent) {
+            videoParent.style.position = 'relative';
+            videoParent.appendChild(overlayContainer);
+        }
+    }
+}
+
+// Fungsi untuk menampilkan error scanner yang lebih informatif
+function displayCustomScannerError(title, detail) {
+    const readerElement = document.getElementById('reader');
+    if (!readerElement) return;
+    
+    // Bersihkan elemen reader
+    readerElement.innerHTML = '';
+    
+    // Buat container error
+    const errorContainer = document.createElement('div');
+    errorContainer.className = 'scanner-error-container';
+    errorContainer.style.padding = '20px';
+    errorContainer.style.backgroundColor = '#f8d7da';
+    errorContainer.style.color = '#721c24';
+    errorContainer.style.borderRadius = '8px';
+    errorContainer.style.border = '1px solid #f5c6cb';
+    errorContainer.style.textAlign = 'center';
+    errorContainer.style.marginBottom = '20px';
+    
+    // Buat ikon error
+    const errorIcon = document.createElement('div');
+    errorIcon.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#721c24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+    `;
+    errorIcon.style.marginBottom = '15px';
+    
+    // Buat judul error
+    const errorTitle = document.createElement('h3');
+    errorTitle.textContent = title;
+    errorTitle.style.margin = '0 0 10px 0';
+    
+    // Buat detail error
+    const errorDetail = document.createElement('p');
+    errorDetail.textContent = detail;
+    errorDetail.style.margin = '0 0 15px 0';
+    
+    // Buat tombol retry
+    const retryButton = document.createElement('button');
+    retryButton.textContent = 'Coba Lagi';
+    retryButton.style.backgroundColor = '#28a745';
+    retryButton.style.color = 'white';
+    retryButton.style.border = 'none';
+    retryButton.style.padding = '10px 15px';
+    retryButton.style.borderRadius = '4px';
+    retryButton.style.cursor = 'pointer';
+    
+    // Tambahkan event listener untuk tombol retry
+    retryButton.addEventListener('click', function() {
+        fixCameraAccess();
+    });
+    
+    // Tambahkan semua elemen ke container
+    errorContainer.appendChild(errorIcon);
+    errorContainer.appendChild(errorTitle);
+    errorContainer.appendChild(errorDetail);
+    errorContainer.appendChild(retryButton);
+    
+    // Tambahkan container ke elemen reader
+    readerElement.appendChild(errorContainer);
+}
+
+// Inisialisasi perbaikan kamera saat halaman dimuat
+document.addEventListener('DOMContentLoaded', function() {
+    // Cek jika tab scan aktif
+    const scanTab = document.getElementById('scan');
+    if (scanTab && scanTab.classList.contains('active')) {
+        // Tunda inisialisasi sedikit untuk memastikan DOM sudah siap
+        setTimeout(() => {
+            fixCameraAccess();
+        }, 1000);
+    }
+    
+    // Tambahkan listener untuk tab scan
+    const scanTabButton = document.querySelector('[data-tab="scan"]');
+    if (scanTabButton) {
+        scanTabButton.addEventListener('click', function() {
+            // Tunda inisialisasi sedikit untuk memastikan DOM sudah siap
+            setTimeout(() => {
+                fixCameraAccess();
+            }, 500);
+        });
+    }
+});
